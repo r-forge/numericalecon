@@ -1,0 +1,10 @@
+export(Quadra, print.Quadra, zeros, zeros.Quadra, print.zeros, solveP.Quadra, solveP, print.solveP.Quadra, addQuadra, plot.Quadra, summary.Quadra, "%+%")
+ 
+S3method(summary, Quadra)
+S3method(plot, Quadra)
+S3method(print, Quadra)
+S3method(print, zeros)
+S3method(solveP, Quadra)
+S3method(print, solveP.Quadra)
+S3method(zeros, Quadra)
+

@@ -1,0 +1,13 @@
+Package: numericalecon
+Version: 0.0-1
+Date: 2011-01-03
+Title: Numerical Methods for Economists
+Author: Pierre Chausse <pchausse@uwaterloo.ca>
+Maintainer: Pierre Chausse <pchausse@uwaterloo.ca>
+Description: This package includes tools and functions used in 
+             the numerical course offered at the University of Waterloo
+Depends: R (>= 2.10.0)
+Suggests: 
+Imports: 
+License: GPL (>= 2)
+
