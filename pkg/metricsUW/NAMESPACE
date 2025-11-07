@@ -1,0 +1,11 @@
+importFrom("graphics", "plot", "lines", "legend")
+importFrom("stats", "coef", "formula", "pnorm", "pt", "symnum",
+             "terms", "lm", "qt", "qnorm", "sd", "qchisq", "var")
+
+export(printReg, print.metricsSol, testMean, ciMean, testDiffMeans,
+       ciDiffMeans, testVar)
+
+S3method(print, metricsSol)
+
+
+

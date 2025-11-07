@@ -1,0 +1,356 @@
+---
+title: "Tools for Teaching Econometrics"
+author: "Pierre Chausse^[University of Waterloo, pchausse@uwaterloo.ca]"
+date: ""
+output:
+ pdf_document:
+  number_sections: true
+abstract: "This vignette explains how to use the different tools I used in my econometrics courses at the University of Waterloo. It includes functions to generate solutions from inference questions, to print regression results and more."
+vignette: >
+  %\VignetteIndexEntry{Tools for Teaching Econometrics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteDepends{metricsUW}
+  %\VignettePackage{metricsUW}
+  %\VignetteEncoding{UTF-8}
+header-includes:
+- \DeclareMathOperator{\Ex}{E}
+- \DeclareMathOperator{\var}{var}
+- \DeclareMathOperator{\cov}{cov}
+- \DeclareMathOperator{\pr}{Pr}
+- \newcommand{\tp}[1]{#1^T}
+- \newcommand{\reals}{\mathbb{R}}
+---
+
+
+# Introduction \label{sec:intro}
+
+I use many functions in my courses to print regression results in a
+nice format, generate solutions for inference question on the mean,
+the variance, and least squares models, to simulate data to illustrate
+concepts, and so on. This document explains how to use them using
+examples from the courses. To run the different functions available in
+the package, you first need to load it:
+
+```{r}
+library(metricsUW)
+```
+
+# Printing regression results in equation format
+
+To print a regression result from `lm` or `glm`, the function
+`printReg` generates a latex equation with the coefficient estimates
+and their standard errors. To have the equation printed in Latex
+format in a R-Markdown document, the chunk option `results='asis'`
+must be added. For example, the following is an estimated wage
+equation using the `PSID1976` dataset from the `AER` package:
+
+```{r, results='asis'}
+data(PSID1976, package="AER")
+fit1 <- lm(wage~education+age+I(age^2), PSID1976)
+printReg(fit1)
+```
+
+The function offers different options. You can add stars for
+significant coefficients (`stars=TRUE`), adjusted $R^2$
+(`adjrsq=TRUE`), limit the number of variables per line when the
+equation does not fit the page (e.g. `maxpl=3`), replace default
+standard errors by robust ones (`se=newse`), replace the default
+t-distribution used to compute p-values by the N(0,1) distribution
+(`dist="n"`) or omit variables. We present here a few examples.
+
+
+- Adding adjusted $R^2$ and stars, and reducing the number of
+  variables per line. I also increase the number of digits.
+
+```{r, results='asis'}
+fit2 <- lm(wage~education*city+heducation+age+I(age^2), PSID1976)
+printReg(fit2, maxpl=3, adjrs=TRUE, stars=TRUE, digits=5)
+```
+
+- Replacing default standard errors by robust ones, and using the
+  standard normal distribution for p-values.
+
+```{r, results='asis'}
+library(sandwich)
+newse <- sqrt(diag(vcovHC(fit2)))
+printReg(fit2, maxpl=3, se=newse, stars=TRUE)
+```
+
+For GLM estimation, the $R^2$ is replaced by residual deviance and AIC
+is printed. Also, the left-hand side specifies that it is the link of
+$\hat{Y}$ that has the linear representation. For example, the
+following is the result from a Poisson regression with the log link:
+
+```{r, results='asis'}
+data(fertil2, package="wooldridge")
+fit3 <- glm(children~educ+age+I(age^2)+catholic+electric+radio+tv+heduc,
+            family=poisson(link=log), data=fertil2)
+printReg(fit3, maxpl=3, stars=TRUE)
+```
+
+If we just want to create a regression equation from a formula, we
+just set the argument `form` to the desired formula. Here is an
+example:
+
+```{r, results='asis'}
+printReg(form=log(wage)~education*female+age+I(age^2))
+```
+
+
+# Solution to inference questions
+
+The way the functions are organized is as follows. First the inference
+function generates the solution, which is an object of class
+`metricsSol`, and the `print` method generates the answer in Latex
+format. It is meant to be printed inside an R-Markdown chunk, with
+the option `results="asis"`.
+
+## Introduction to Statistics
+
+This section covers inference problems typically covered in an
+introductory statistics course.
+
+### Test on the mean
+
+The solution is based on the following properties:
+
+- If $X_i\sim N(\mu,\sigma^2)$, then $$
+  \frac{\sqrt{n}(\bar{X}-\mu)}{\hat\sigma} \sim t_{n-1}\,,$$ where $n$
+  is the sample size, $\bar{X}$ is the sample mean and $\hat\sigma$ is
+  the sample standard errors defined as
+  $\sum_{i=1}^n(X_i-\bar{X})^2/(n-1)$.
+  
+- If the distribution of $X_i$ is unknown, the true distribution of
+  the test is also unknown, but the distribution it converges to is
+  known. In my course, the t-distribution is only used when it is the
+  exact distribution. If not, we use the N(0,1) as an
+  approximation. The solution generator applies this rule as well.
+
+Suppose we have a series and want to test the hypothesis $H_0:~\mu=c$
+against $H_1:~\mu\neq c$, $H_1:~\mu>c$ or $H_1:~\mu<c$. The function
+`testm` generates the solution. Consider the `wage` series form the
+PSID1976 dataset, restricted to workers with positive hours:
+
+```{r}
+wage <- subset(PSID1976, hours>0)$wage
+```
+
+We want to test if the population average is equal to 5 dollars per
+hour against the alternative that it is not equal to 5. We just insert
+the following code in the chunk:
+
+```{r, results='asis'}
+testMean(wage, h0=5)
+```
+
+It is not necessary to use the `print` method directly, unless we want
+to add something to the solution. For example, I like to add mark
+distribution in my exam solutions:
+
+```{r, results='asis'}
+sol1 <- testMean(wage, h0=5)
+print(sol1, addMess="1 point for the statistic and 1 point for the conclusion")
+```
+
+By default, we assume normality of the data, a size of 5\% and a
+two-sided alternative. When we assume normality, the distribution used
+for the critical value is the t-distribution with $(n-1)$ degrees of
+freedom. If we don't, the critical value is based on the asymptotic
+N(0,1) property of the test. It is also possible to change the
+alternative hypothesis by either "greater" or "less" and the size of
+the test:
+
+```{r, results='asis'}
+testMean(wage, h0=5, size=0.10, alter="less", assume="nonNormal")
+```
+
+By default, all decimals are kept to compute the statistic. This could
+lead to slightly different solutions when the question is asked in an
+exam, because the printed numbers are rounded. It is possible to round
+the sample mean and standard errors before computing the test, through
+the argument `dround`. For example, suppose an exam question was
+generated directly from the data and the following table was printed
+using `stargazer`:
+
+```{r, results='asis'}
+library(stargazer)
+stargazer(data.frame(wage), digits=3, header=FALSE, float=FALSE)
+```
+
+We would generate the solution as follows:
+
+```{r, results='asis'}
+testMean(wage, h0=5, size=0.10, alter="less", dround=3)
+```
+
+This option exists for all solution generator, so we won't discuss it
+further. It also possible to generate a solution without data. We just
+need to provide the sample mean, the standard error and the sample
+size:
+
+```{r, results='asis'}
+testMean(h0=4, xbar=3.7, se=0.8, n=40)
+```
+
+### Confidence interval for the mean
+
+The $(1-\alpha)\times 100$\% confidence interval is defined as:
+
+\[
+[\bar{X} - q_{1-\alpha/2}\hat\sigma,~~\bar{X} + q_{1-\alpha/2}\hat\sigma]\,,
+\]
+
+were $q_{1-\alpha/2}$ is the $(1-\alpha/2)\times 100$\% quantile of
+the $t_{n-1}$ when $X_i\sim N(\mu, \sigma^2)$, in which case the
+coverage is exact, and the N(0,1) when the distribution of $X_i$ is
+unknown. For the latter case, the coverage is just an approximation
+based on the CLT. This rule inn consistent with the rule for tests on
+the mean described in the previous section.
+
+If we use the wage data from the previous section, the 95\% confidence
+interval for the average wage, assuming normality, is:
+
+```{r, results='asis'}
+ciMean(wage)
+```
+
+As for `testMean`, we can choose not to assume normality and change
+the `size`. It is also possible to round the mean and standard
+deviation to match the solution of written questions.
+
+```{r, results='asis'}
+ciMean(wage, size=0.15, assume="nonNormal", dround=3)
+```
+
+Finally, we can specify the sample mean, standard deviation and sample size:
+
+```{r, results='asis'}
+ciMean(xbar=3.2, se=0.9, n=32)
+```
+
+### Tests on the difference between two means
+
+The following properties are assumed in the solution generator
+`testDiffMeans`. If we have two samples of sizes $n_1$ and $n_2$ for
+$X_1$ and $X_2$, and want test the hypothesis $H_0:~\mu_1-\mu_2=c$, then:
+
+- If $X_1\sim N(\mu_1, \sigma^2)$ and $X_2\sim N(\mu_2,\sigma^2)$, which implies that we assume equal variance, we have the following result under the null: $$\frac{\bar{X}_1-\bar{X}_2-c}{\hat\sigma\sqrt{\frac{1}{n_1}+\frac{1}{n_2}}}\sim t_{n_1+n_2-2}\,,$$ where $$\hat\sigma^2 = \frac{1}{n_1+n_2-2}\left[\hat\sigma^2_1(n_1-1) + \hat\sigma^2_2(n_2-1) \right]$$ and $\hat\sigma^2_1$ and $\hat\sigma^2_2$ are the usual bias corrected estimator of the variance of $X_1$ and $X_2$.
+
+- For any other cases, which include non-normality and/or non-equal
+  variances, the exact distribution of the test is unknown, so we use
+  the approximated N(0,1) instead of the t-distribution. If the
+  variances are not equal, the above test is not valid and must be
+  replaced by:$$\frac{\bar{X}_1-\bar{X}_2-c}{\sqrt{\frac{\hat\sigma^2_1}{n_1} + \frac{\hat\sigma^2_2}{n_2}}}\approx N(0,1)\,.$$ 
+
+
+> **Note**: The test presented here assumes that $Cov(X_1,X_2)=0$. We
+> do not cover the non-zero covariance case in my courses, so it is
+> not yet implemented.
+
+Suppose we want to test if the average wage if the same for workers
+living in a city and the ones not living in a city, we can proceed as
+follows. We first consider the normal case with equal variances.
+
+```{r, results='asis'}
+wageCity <- subset(PSID1976, hours>0 & city=="yes")$wage
+wageNoCity <- subset(PSID1976, hours>0 & city=="no")$wage
+testDiffMeans(x1=wageCity, x2=wageNoCity, h0=0)
+```
+
+For any other cases, the approximated N(0,1) is used. Here is an
+example with other specifications:
+
+```{r, results='asis'}
+testDiffMeans(x1=wageCity, x2=wageNoCity, h0=1, assumev="diff", size=0.10,
+              alter="less")
+```
+
+As for the other tests, we can input estimated means and standard
+errors instead of vectors. The arguments `xbar`, `se`, and `n` must be
+vectors of two:
+
+```{r, results='asis'}
+testDiffMeans(h0=1, xbar=c(2.2,3.3), se=c(3.4,4.6), n=c(34,76))
+```
+
+### Confidence intervals for the difference between two means
+
+The theory from the previous section also applies here: we use the
+t-distribution only if the data is normally distributed and the
+variances of $X_1$ and $X_2$ are the same. Also, the standard
+deviation of $\bar{X}_1-\bar{X}_2$ is
+
+\[
+s= = \sqrt{\frac{1}{n_1+n_2-2}\left[\hat\sigma^2_1(n_1-1) + \hat\sigma^2_2(n_2-1) \right]
+\left(\frac{1}{n_1}+\frac{1}{n_2}\right)}\,,
+\]
+
+if the variances are the same and the following if they are not:
+
+\[
+s = \sqrt{\frac{\hat\sigma^2_1}{n_1} + \frac{\hat\sigma^2_2}{n_2}}\,.
+\]
+
+The confidence interval for the difference in average wage between
+workers from a city the ones not from a city, assuming normality and equal variance, is
+
+```{r, results='asis'}
+ciDiffMeans(wageCity, wageNoCity)
+```
+
+If we relax the normality and/or the equal variance we obtain:
+
+```{r, results='asis'}
+ciDiffMeans(wageCity, wageNoCity, assumev="diff", size=0.1)
+```
+
+As for testing the difference between means, we can also replace the
+vectors of observations by `xbar`, `se`, and `n`.
+
+### Test on the variance
+
+The only implemented test at the moment is the one that assumes
+normality. The assumption implies that under the null
+$H_0:~\sigma^2=c$, we have the following distribution:
+
+\[
+\frac{(n-1)\hat\sigma^2}{c}\sim \chi^2_{n-1}
+\]
+
+Let's consider the following summary statistics from the `hprice1`
+dataset:
+
+```{r, results='asis'}
+data(hprice1, package="wooldridge")
+hprice1$lotsize <- hprice1$lotsize/1000
+hprice1$sqrft <- hprice1$sqrft/1000
+stargazer(hprice1[,1:5], digits=4, header=FALSE, float=FALSE)
+```
+
+Suppose we want to test $H_0:~\sigma^2=130$ against $H_1:~\sigma^2\neq
+130$ for the lot size. In the following I show what happens if we set
+`assume` to `"nonNormal"`. The test is performed, but a note is added
+saying that the chi-square is not a valid distribution.
+
+```{r, results='asis'}
+testVar(hprice1$lotsize, h0=130, assume="nonNormal")
+```
+
+We can use one-sided tests and change the size:
+
+```{r, results='asis'}
+testVar(hprice1$lotsize, h0=130, alter="less", size=0.1)
+testVar(hprice1$lotsize, h0=70, alter="greater", size=0.01)
+```
+
+We can also replace the vector par values of `se` and `n`. For
+example, we want to use the number from the table and test
+$H_0:~\sigma^2=0.25$ for square footage, we proceed as follows:
+
+
+```{r, results='asis'}
+testVar(se=0.5772, n=88, h0=0.25)
+```
+
+
+
