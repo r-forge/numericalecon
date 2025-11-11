@@ -5,6 +5,8 @@
 \alias{testDiffMeans}
 \alias{ciDiffMeans}
 \alias{testVar}
+\alias{ciVar}
+\alias{testDiffVar}
 
 \title{Object generators for inference solution}
 
@@ -33,7 +35,15 @@ ciDiffMeans(x1, x2, size=.05, assume=c("Normal","nonNormal"),
 testVar(x, h0, size=.05, alter=c("diff","greater","less"),
         assume=c("Normal","nonNormal"), digits=4, dround=NULL,
         se=NULL, n=NULL)
+
+ciVar(x, size=0.05, assume=c("Normal","nonNormal"), digits=4, dround=NULL,
+      se=NULL, n=NULL)
+
+testDiffVar(x1, x2, size=.05, 
+            assume=c("Normal","nonNormal"), digits=4, dround=NULL,
+            se=NULL, n=NULL)
 }
+
 \arguments{
 
   \item{x, x1, x2}{Numeric vectors}
@@ -80,7 +90,7 @@ obj <- testMean(x1, 0)
 
 obj <- testMean(h0=0, xbar=0.1, se=0.6, n=35)
 
-## See vignettes for more examples
+## See vignette for more examples
 
 }
 

@@ -1,11 +1,19 @@
-importFrom("graphics", "plot", "lines", "legend")
+importFrom("graphics", "plot", "lines", "legend", "curve", "grid", "points")
+
 importFrom("stats", "coef", "formula", "pnorm", "pt", "symnum",
-             "terms", "lm", "qt", "qnorm", "sd", "qchisq", "var")
+           "terms", "lm", "qt", "qnorm", "sd", "qchisq", "var", "qf",
+           "nobs", "vcov", "residuals", "arima.sim", "ts", "runif",
+           "rnorm")
+
 
 export(printReg, print.metricsSol, testMean, ciMean, testDiffMeans,
-       ciDiffMeans, testVar)
+       ciDiffMeans, testVar, ciVar, testDiffVar, testRegCoef, ciRegCoef,
+       testLinRegCoefs, testRegF, genTS, plot.DemSup, print.DemSup,
+       genDemSup)
 
 S3method(print, metricsSol)
+S3method(plot, DemSup)
+S3method(print, DemSup)
 
 
 

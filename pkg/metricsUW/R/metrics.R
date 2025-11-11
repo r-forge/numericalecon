@@ -414,7 +414,7 @@ ciDiffMeans <- function(x1, x2, size=.05, assume=c("Normal","nonNormal"),
             m1 <- round(m1, dround)
             m2 <- round(m2, dround)
             s1 <- round(s1, dround)
-            s2 <- round(s1, dround)
+            s2 <- round(s2, dround)
         }        
         n1 <- length(x1)
         n2 <- length(x2)
@@ -556,4 +556,528 @@ testVar <- function(x, h0, size=.05, alter=c("diff","greater","less"),
     class(obj) <- "metricsSol"
     obj            
 }
+
+ciVar <- function(x, size=0.05, assume=c("Normal","nonNormal"), digits=4, dround=NULL,
+                  se=NULL, n=NULL)
+{
+    assume <- match.arg(assume)    
+    if (!is.null(se))
+    {
+        if (is.null(n))
+            stop("the sample size is missing")
+        v <- se^2
+    } else {
+        v <- var(x)
+        if (!is.null(dround))
+        {
+            v <- round(v, dround)
+        }
+        n <- length(x)
+    }
+    qu <- qchisq(1-size/2, n-1)
+    ql <- qchisq(size/2, n-1)  
+    up <- (n-1)*v/ql
+    down <- (n-1)*v/qu
+    what <- paste((1-size)*100, "\\% confidence interval for the variance", sep="")
+    ftest <- paste("\\[\n \\begin{split}\n",
+                   "CI & = \\left[\\frac{(n-1)S^2}{Q^*_u}, ",
+                   "\\frac{(n-1)S^2}{Q^*_l}\\right]",
+                   "\\\\ \n& = \\left[", (n-1),"\\times",
+                   "\\frac{",round(v,digits),"}{",round(qu, digits),"}",
+                   ",~",(n-1),"\\times",
+                   "\\frac{",round(v,digits),"}{",round(ql, digits),"}\\right]",
+                   "\\\\ \n& = [", round(down,digits),",~",round(up,digits),"]",
+                   "\\end{split}\n\\]",sep="")
+    mes <- paste("The $Q^*_u$ is the ", (1-size/2)*100, "\\% quantile of the ",
+                 "$\\chi^2_{", n-1, "}$ and $Q^*_l$ is its ", size/2*100,
+                 "\\% quantile.", 
+                 sep="")
+    if (assume=="nonNormal")
+        mes <- paste(mes, " (The $\\chi^2_{", n-1, "}$", 
+                     "$ is not valid in this case ",
+                     "because the distribution of the data is unknown)", sep="")
+    obj <- list(ftest=ftest, mes=mes,
+                type="Confidence interval for the variance",
+                test=what)
+    class(obj) <- "metricsSol"
+    obj                
+}        
+
+testDiffVar <- function(x1, x2, size=.05, 
+                        assume=c("Normal","nonNormal"), digits=4, dround=NULL,
+                        se=NULL, n=NULL)
+{
+    assume <- match.arg(assume)
+    if (!is.null(se))
+    {
+        if (is.null(n))
+            stop("the sample size is missing")
+        if (any(c(length(se)!=2, length(n)!=2)))
+            stop("se and n must contain two numeric values")
+        v1 <- se[1]^2; v2 <- se[2]^2
+        n1 <- n[1]; n2 <- n[2]
+    } else {        
+        s1 <- sd(x1)
+        s2 <- sd(x2)
+        if (!is.null(dround))
+        {
+            s1 <- round(s1, dround)
+            s2 <- round(s2, dround)
+        }        
+        n1 <- length(x1)
+        n2 <- length(x2)
+        v1 <- s1^2; v2 <- s2^2
+    }
+    num <- max(v1,v2)
+    den <- min(v1,v2)
+    t <- num/den
+    nnum <- ifelse(v1>v2, n1, n2)
+    nden <- ifelse(v1>v2, n2, n1)
+    dist <- paste("F(",nnum-1,",",nden-1,")",sep="")
+    what <- paste("Testing $H_0:~\\sigma^2_1=\\sigma^2_2$, against $H_1:~\\sigma^2_1",
+                  "\\neq \\sigma^2_2$", 
+                  " at ", size*100, "\\%", sep="")                
+    if (assume=="Normal")
+        mes2 <- ""
+    else 
+        mes2 <- paste(" (The ", dist, 
+                      " is not a valid distribution ",
+                      "because the distribution of the data is unknown)", sep="")
+    ftest <- paste("\\[\ntest = \\frac{\\hat{\\sigma}^2_1}{\\hat{\\sigma}^2_2}",
+                   " = \\frac{",round(num,digits),"}{",round(den,digits),"} = ",
+                   round(t,digits),"\\sim", dist,"\n\\]")               
+    crit <- qf(1-size, nnum-1,nden-1)
+    if (t>crit)
+        mes <- paste("Since $", round(t,digits), ">", round(crit,digits),
+                     "$ (the ", (1-size)*100, "\\% quantile of the $",
+                     dist, "$), we reject $H_0$.", sep="")
+    else
+        mes <- paste("Since $", round(t,digits), "<", round(crit,digits),
+                     "$ (the ", (1-size)*100, "\\% quantile of the $",
+                     dist, "$), we do not reject $H_0$.", sep="")
+    mes <- paste(mes, mes2, sep="")
+    obj <- list(ftest=ftest, mes=mes,
+                type="Test on the equality of two variances",
+                test=what)
+    class(obj) <- "metricsSol"
+    obj                
+}        
+
+## Solution generators: Inference on regression coefficients
+
+testRegCoef <- function(object, h0, which, size=.05, alter=c("diff","greater","less"),
+                        digits=4, assume=c("Normal","nonNormal"),
+                        beta=NULL, se = NULL, n=NULL, ncoef=NULL, dround=NULL)
+{
+    alter <- match.arg(alter)
+    assume <-  match.arg(assume)
+    signif <- h0==0 & alter=="diff"
+    exact <- assume=="Normal" & is.null(beta) & is.null(se)
+    if (!is.null(beta))
+    {
+        if (is.null(se) | is.null(n) | is.null(ncoef))
+            stop("the standard error and/or sample size and/or the number of coefficients is missing")
+        m <- beta
+        s <- se
+        df <- n-ncoef
+    } else {
+        if (missing(which))
+            stop("You must specify which coefficient you are performing the test on")
+        m <- object$coef[which]
+        if (is.null(se))
+        {
+            s <- sqrt(diag(vcov(object)))[which]
+        } else {
+            if (length(se)!=length(coef(object)))
+                stop("se must be a vector of the same length as the coefficient vector")
+            s <- se[which]
+        }
+        n <- nobs(object)
+        df <- object$df
+        if (!is.null(dround))
+        {
+            m <- round(m, dround)
+            s <- round(s, dround)
+        }
+    }
+    coefn <- ifelse(!is.null(beta), "\\beta_j", paste("\\beta_", which-1, sep=""))
+    what <- paste("Testing $H_0:~", coefn, "=",h0, "$ against $H_1:~", coefn,
+                  switch(alter, diff="\\neq", greater=">", less="<"),h0, "$",
+                  " at ", size*100, "\\%", sep="")    
+    t <- (m-h0)/s
+    if (exact)
+    {
+        dist <- paste("t_{",df,"}",sep="")
+        mes2 <- ""
+        distAs <- "\\sim"
+    } else {
+        dist <- "N(0,1)"
+        
+        mes2 <- " (The N(0,1) is an approximation based on the C.L.T. because either the distribution of the error term is unknown and/or the errors are not homoskedastic.)"
+        distAs <- "\\approx"
+    }
+    ftest <- paste("\\[\ntest = \\frac{(",coefn,"-",h0,")}{se} = \\frac{(",
+                   round(m,digits),"-",h0,")}{",round(s,digits),"}=",
+                   round(t,digits),distAs, dist,"\n\\]")               
+    if (alter == "diff")
+    {
+        crit <- ifelse(!exact, qnorm(1-size/2), qt(1-size/2,df))
+        if (abs(t)>crit)
+        {
+            mes <- paste("Since $|", round(t,digits), "|>",
+                         round(crit,digits),
+                         "$ (the ", (1-size/2)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+            if (signif)
+                mes <- paste(mes,
+                             "The coefficient is therefore significant")
+        } else {
+            mes <- paste("Since $|", round(t,digits), "|<",
+                         round(crit,digits),
+                         "$ (the ", (1-size/2)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+            if (signif)
+                mes <- paste(mes,
+                             "The coefficient is therefore non-significant")
+        }
+    } else if (alter == "greater") {
+        crit <- ifelse(!exact, qnorm(1-size), qt(1-size,df)) 
+        if (t>crit)
+            mes <- paste("Since $", round(t,digits), ">", round(crit,digits),
+                         "$ (the ", (1-size)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+        else
+            mes <- paste("Since $", round(t,digits), "<", round(crit,digits),
+                         "$ (the ", (1-size)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+    } else {
+        crit <- ifelse(!exact, qnorm(size), qt(size,df))
+        if (t<crit)
+            mes <- paste("Since $", round(t,digits), "<", round(crit,digits),
+                         "$ (the ", (size)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+        else
+            mes <- paste("Since $", round(t,digits), ">", round(crit,digits),
+                         "$ (the ", (size)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+    }
+    mes <- paste(mes, mes2, sep="")
+    obj <- list(ftest=ftest, mes=mes,
+                type="Test on one regression coefficient",
+                test=what)
+    class(obj) <- "metricsSol"
+    obj                    
+}        
+
+
+ciRegCoef <- function(object, size=0.05,  which, digits=4,
+                      assume=c("Normal", "nonNormal"),
+                      beta=NULL, se=NULL, n=NULL, ncoef=NULL, dround=NULL)
+{
+    assume <- match.arg(assume)
+    exact <- assume=="Normal" & is.null(beta) & is.null(se)
+    if (!is.null(beta))
+    {
+        if (is.null(se) | is.null(n) | is.null(ncoef))
+            stop("the standard error and/or sample size and/or the number of coefficients is missing")
+        m <- beta
+        s <- se
+        df <- n-ncoef
+    } else {
+        if (missing(which))
+            stop("You must specify for which coefficient you want to compute the confidence interval")
+        m <- object$coef[which]
+        if (is.null(se))
+        {
+            s <- sqrt(diag(vcov(object)))[which]
+        } else {
+            if (length(se)!=length(coef(object)))
+                stop("se must be a vector of the same length as the coefficient vector")
+            s <- se[which]
+        }
+        n <- nobs(object)
+        df <- object$df
+        if (!is.null(dround))
+        {
+            m <- round(m, dround)
+            s <- round(s, dround)
+        }
+    }
+    coefn <- ifelse(!is.null(beta), "\\beta_j", paste("\\beta_", which-1, sep=""))
+    what <- paste((1-size)*100, "\\% confidence interval for $", coefn, "$.", sep="")
+    crit <- ifelse(exact, qt(1-size/2,df), qnorm(1-size/2))
+    dist <- ifelse(exact,
+                   paste("t-distribution with ", df, " degrees of freedom.",sep=""),
+                   "N(0,1).")
+    up <- m+crit*s
+    down <- m-crit*s
+    ftest <- paste("\\[\n \\begin{split}\n",
+                   "CI & = \\left[",coefn,"-t^*se",
+                   ",~", coefn, "+t^*se\\right]",
+                   "\\\\ \n& = \\left[", round(m,digits),"-",round(crit,digits),
+                   "\\times",round(s,digits),
+                   ",~", round(m,digits),"+",round(crit,digits),
+                   "\\times",round(s,digits),"\\right]",
+                   "\\\\ \n& = [", round(down,digits),",~",round(up,digits),"]",
+                   "\\end{split}\n\\]",sep="")
+    mes <- paste("The $t^*$ is the ", (1-size/2)*100, "\\% quantile of the ",
+                 dist, sep="")
+    if (!exact)
+        mes <- paste(mes, " (The N(0,1) is an approximation based on the C.L.T. ",
+                     "because either the distribution of the error term is unknown ",
+                     "and/or the errors are not homoskedastic.)", sep="")
+    obj <- list(ftest=ftest, mes=mes,
+                type="Confidence interval on one regression coefficient",
+                test=what)
+    class(obj) <- "metricsSol"
+    obj                        
+}
+
+testLinRegCoefs <- function(object, R, q,  size=.05, alter=c("diff","greater","less"),
+                      digits=4, assume=c("Normal","nonNormal"),
+                      beta=NULL, vcoef=NULL, n=NULL, dround=NULL)
+{        
+    alter <- match.arg(alter)
+    assume <- match.arg(assume)
+    exact <- assume=="Normal" & is.null(beta) & is.null(vcoef)
+    R <- c(R)
+    q <- c(q)
+    if (length(q)!=1)
+        stop("The right-hand side must be a scalar")
+    if (!is.null(beta))
+    {
+        if (is.null(vcoef) | is.null(n))
+            stop("the covariance matrix and/or sample size is missing")
+        b <- beta
+        v <- vcoef
+        df <- n-length(b)
+    } else {
+        b <- coef(object)
+        if (is.null(vcoef))
+        {
+            v <- vcov(object)
+        } else {
+            v <- vcoef
+        }
+        n <- nobs(object)
+        if (!is.null(dround))
+        {
+            b <- round(b, dround)
+            v <- round(v, dround)
+        }
+        df <- object$df
+    }
+    if (length(R)!=length(b))
+        stop("The number of columns of R does not match the number of coefficients")
+    m <- sum(b*R)-q
+    s <- sqrt(c(t(R)%*%v%*%R))
+    which <- which(R!=0)
+    sR <- ifelse(R[which]<0,"-", "+")
+    sq <- ifelse(sign(q)==-1, "+", "-")
+    if (sR[1] == "+")
+        sR[1] <- ""
+    mR <- abs(R[which])
+    mR[mR==1] <- ""
+    coefn <- vector()
+    sdevn <- vector()
+    for (i in 1:length(mR))
+    {
+        coefn2 <- paste(sR[i], mR[i], "\\hat{\\beta}_",
+                        which[i]-1, sep="")
+        coefn <- paste(coefn, coefn2, sep="")
+        if (i == 1)
+            start <- ""
+        else
+            start <- "+"
+        if (abs(R[which[i]]) == 1)
+        {
+            sdevn2 <- paste(start, "Var(\\hat{\\beta}_", which[i]-1,")",
+                            sep="")
+        } else {
+            sdevn2 <- paste(start, abs(R[which[i]]), "^2Var(\\hat{\\beta}_",
+                            which[i]-1,")",sep="")
+        }
+        sdevn <- paste(sdevn, sdevn2, sep="")
+    }
+    coefnW <- gsub("\\\\hat", "", coefn)
+    coefn <- paste(coefn, sq, abs(q), sep="") 
+    if (length(mR)>1)
+    {
+        for (i in 1:(length(mR)-1))
+        {
+            for (j in 2:length(mR))
+            {
+                Rij <- R[which[i]]*R[which[j]]
+                if (Rij > 0)
+                    start <- "+"
+                else
+                    start <- "-"
+                Rij <- abs(Rij)
+                Rij[Rij==1] <- ""
+                sdevn2 <- paste(start, "2\\times ", Rij,
+                                "Cov(\\hat{\\beta}_", which[i]-1,
+                                ",\\hat{\\beta}_", which[j]-1,")",
+                                sep="")
+                sdevn <- paste(sdevn, sdevn2,sep="")
+            }
+        }                
+    }
+    what <- paste("Testing $H_0:~", coefnW, "=",q, "$ against $H_1:~", coefnW,
+                  switch(alter, diff="\\neq", greater=">", less="<"),q, "$",
+                  " at ", size*100, "\\%", sep="")    
+    t <- m/s
+    dist0 <- ifelse(exact, "\\sim ", "\\approx")
+    dist <- ifelse(exact, paste("t_{",df,"}",sep=""), "N(0,1)")
+    ftest <- paste("\\[\ntest = \\frac{",coefn,"}{se} = \\frac{",
+                   round(m,digits),"}{",round(s,digits),"}=",
+                   round(t,digits),dist0, dist,"\n\\]\n")
+    ftest2 <- paste("where, \n\\[se=\\sqrt{",sdevn,"}\n\\]", sep="")
+    ftest <- paste(ftest, ftest2)
+    if (alter == "diff")
+    {
+        crit <- ifelse(exact, qt(1-size/2,df), qnorm(1-size/2))
+        if (abs(t)>crit)
+        {
+            mes <- paste("Since $|", round(t,digits), "|>",
+                         round(crit,digits),
+                         "$ (the ", (1-size/2)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+        } else {
+            mes <- paste("Since $|", round(t,digits), "|<",
+                         round(crit,digits),
+                         "$ (the ", (1-size/2)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+        }
+    } else if (alter == "greater") {
+        crit <- ifelse(exact, qt(1-size,df), qnorm(1-size))
+        if (t>crit)
+            mes <- paste("Since $", round(t,digits), ">", round(crit,digits),
+                         "$ (the ", (1-size)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+        else
+            mes <- paste("Since $", round(t,digits), "<", round(crit,digits),
+                         "$ (the ", (1-size)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+    } else {
+        crit <- ifelse(exact, qt(size,df), qnorm(size))
+        if (t<crit)
+            mes <- paste("Since $", round(t,digits), "<", round(crit,digits),
+                         "$ (the ", (size)*100, "\\% quantile of the $",
+                         dist, "$), we reject $H_0$.", sep="")
+        else
+            mes <- paste("Since $", round(t,digits), ">", round(crit,digits),
+                         "$ (the ", (size)*100, "\\% quantile of the $",
+                         dist, "$), we do not reject $H_0$.", sep="")
+    }
+    if (!exact)
+        mes <- paste(mes, " (The N(0,1) is an approximation based on the C.L.T. ",
+                     "because either the distribution of the error term is unknown ",
+                     "and/or the errors are not homoskedastic.)", sep="")    
+    obj <- list(ftest=ftest, mes=mes,
+                type="Testing linear combinations of regression coefficients",
+                test=what)
+    class(obj) <- "metricsSol"
+    obj                            
+}        
+
+testRegF <- function(object, objectr=NULL, size=.05, digits=4,
+                     assume = c("Normal", "nonNormal"), dround=NULL,
+                     Rsq=NULL, SSRu=NULL, SSRr=NULL, nrest=NULL, n=NULL, ncoef=NULL)
+{
+    assume <- match.arg(assume)
+    if ((!is.null(Rsq) | is.null(objectr)) & is.null(SSRu))
+    {
+        if (!is.null(Rsq))
+        {
+            if (any(c(is.null(n), is.null(ncoef))))
+                stop("The sample size and/or the number of coefficients is missing")
+            r2 <- Rsq
+            df1 <- ncoef-1
+            df2 <- n-ncoef
+        } else {
+            r2 <- summary(object)$r.squared
+            if (!is.null(dround))
+                r2 <- round(r2, dround)
+            df1 <- length(coef(object))-1
+            df2 <- object$df
+        }
+        if (assume=="Normal")
+        {
+            distAs <- "\\sim "
+            dist <- paste("F(",df1,",",df2,")",sep="")
+            div <- paste("/", df1, sep="")
+            t <- r2/(1-r2)*df2/df1
+        } else {
+            distAs <- "\\approx "
+            dist <- paste("\\chi^2_",df1,sep="")
+            div <- ""
+            t <- r2/(1-r2)*df2            
+        }        
+        ftest <- paste("\\[\ntest = \\frac{R^2",div,"}{(1-R^2)/",df2,
+                       "} = \\frac{", round(r2,digits),div,
+                       "}{(1-",round(r2,digits),")/",df2,"} = ",
+                       round(t,digits), distAs, dist, "\n\\]\n")                
+    } else {
+        if (!is.null(SSRu))
+        {
+            if (any(c(is.null(SSRr),is.null(nrest), is.null(n), is.null(ncoef))))
+                stop("For manual tests, the two SSR, the sample size, the number of constraints and the number of coefficients are needed")
+            ssr_ur <- SSRu
+            ssr_r <- SSRr
+            df1 <- nrest
+            df2 <- n-ncoef
+        } else {
+            ssr_ur <- sum(residuals(object)^2)
+            ssr_r <- sum(residuals(objectr)^2)
+            if (!is.null(dround))
+            {
+                ssr_ur <- round(ssr_ur,dround)
+                ssr_r <- round(ssr_r,dround)
+            }
+            df1 <- objectr$df-object$df
+            df2 <- object$df
+        }
+        if (assume=="Normal")
+        {
+            distAs <- "\\sim "
+            dist <- paste("F(",df1,",",df2,")",sep="")
+            div <- paste("/", df1, sep="")
+            t <- (ssr_r-ssr_ur)/ssr_ur*df2/df1
+        } else {
+            distAs <- "\\approx "
+            dist <- paste("\\chi^2_",df1,sep="")
+            div <- ""
+            t <- (ssr_r-ssr_ur)/ssr_ur*df2
+        }        
+        ftest <- paste("\\[\ntest = \\frac{(SSR_{r}-SSR_{ur})",
+                       div,"}{SSR_{ur}/", df2,"}",
+                       "= \\frac{(",round(ssr_r,digits),"-",
+                       round(ssr_ur,digits),")",
+                       div,"}{",round(ssr_ur,digits),"/", df2,"} = ",
+                       round(t,digits), distAs, dist, "\n\\]\n")        
+    }
+    crit <- ifelse(assume=="Normal", qf(1-size,df1,df2), qchisq(1-size,df1))
+    if (t>crit)
+    {
+        mes <- paste("Since $", round(t,digits), ">",
+                     round(crit,digits),
+                     "$ (the ", (1-size)*100, "\\% quantile of the $",
+                     dist, "$), we reject $H_0$.", sep="")
+    } else {
+        mes <- paste("Since $", round(t,digits), "<",
+                     round(crit,digits),
+                     "$ (the ", (1-size)*100, "\\% quantile of the $",
+                     dist, "$), we do not reject $H_0$.", sep="")
+        
+    }
+    if (assume!="Normal")
+        mes <- paste(mes, " (The $\\chi^2_{", df1,
+                     "}$ is an approximation based on the C.L.T. ",
+                     "because the distribution of the error term is unknown.", sep="")
+    what <- "Testing joint hypotheses using the F-test"
+    obj <- list(ftest=ftest, mes=mes, type=what, test=what)
+    class(obj) <- "metricsSol"
+    obj                            
+}        
+
 
