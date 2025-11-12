@@ -2,6 +2,7 @@
 title: "Tools for Teaching Econometrics"
 author: "Pierre Chausse^[University of Waterloo, pchausse@uwaterloo.ca]"
 date: ""
+bibliography: ref.bib 
 output:
  pdf_document:
   number_sections: true
@@ -22,14 +23,69 @@ header-includes:
 ---
 
 
+```{r extract, echo-FALSE, message=FALSE}
+library(texreg)
+setMethod("extract", "gmmfit", 
+          function(model, includeJTest=TRUE, includeFTest=TRUE, ...)
+          {
+              s <- summary(model, ...)
+              spec <- modelDims(model@model)
+              coefs <- s@coef
+              names <- rownames(coefs)
+              coef <- coefs[, 1]
+              se <- coefs[, 2]
+              pval <- coefs[, 4]
+              n <- model@model@n
+              gof <- numeric()
+              gof.names <- character()
+              gof.decimal <- logical()
+              if (includeJTest) {
+                  if (spec$k == spec$q)
+                  {
+                      obj.fcn <- NA
+                      obj.pv <- NA
+                  } else {
+                      obj.fcn <- s@specTest@test[1]
+                      obj.pv <- s@specTest@test[3]
+                  }
+                  gof <- c(gof, obj.fcn, obj.pv)
+                  gof.names <- c(gof.names, "J-test Statistics", "J-test p-value")
+                  gof.decimal <- c(gof.decimal, TRUE, TRUE)
+              }
+              if (includeFTest) {
+                  str <- s@strength$strength
+                  if (is.null(str))
+                  {
+                      gof <- c(gof, NA)
+                      gof.names <- c(gof.names, "First Stage F-stats")
+                      gof.decimal <- c(gof.decimal, TRUE)
+                  } else {
+                      for (i in 1:nrow(str))
+                      {
+                          gof <- c(gof, str[i,1])
+                          gofn <- paste("First Stage F-stats(",
+                                        rownames(str)[i], ")", sep="")
+                          gof.names <- c(gof.names, gofn)
+                          gof.decimal <- c(gof.decimal, TRUE)
+                      }
+                  }
+              }
+              tr <- createTexreg(coef.names = names, coef = coef, se = se, 
+                                 pvalues = pval, gof.names = gof.names, gof = gof, 
+                                 gof.decimal = gof.decimal)
+              return(tr)
+          })
+```
+
+
 # Introduction \label{sec:intro}
 
-I use many functions in my courses to print regression results in a
-nice format, generate solutions for inference question on the mean,
-the variance, and least squares models, to simulate data to illustrate
-concepts, and so on. This document explains how to use them using
-examples from the courses. To run the different functions available in
-the package, you first need to load it:
+I use many R functions (@rbase) in my courses to print regression
+results in a nice format, generate solutions for inference question on
+the mean, the variance, and least squares models, to simulate data to
+illustrate concepts, and so on. This document explains how to use them
+using examples from the courses. To run the different functions
+available in the package, you first need to load it:
 
 ```{r}
 library(metricsUW)
@@ -42,7 +98,7 @@ To print a regression result from `lm` or `glm`, the function
 and their standard errors. To have the equation printed in Latex
 format in a R-Markdown document, the chunk option `results='asis'`
 must be added. For example, the following is an estimated wage
-equation using the `PSID1976` dataset from the `AER` package:
+equation using the `PSID1976` dataset from the `AER` package (@aer):
 
 ```{r, results='asis'}
 data(PSID1976, package="AER")
@@ -68,7 +124,7 @@ printReg(fit2, maxpl=3, adjrs=TRUE, stars=TRUE, digits=5)
 ```
 
 - Replacing default standard errors by robust ones, and using the
-  standard normal distribution for p-values.
+  standard normal distribution for p-values (@sandwichlm).
 
 ```{r, results='asis'}
 library(sandwich)
@@ -79,7 +135,9 @@ printReg(fit2, maxpl=3, se=newse, stars=TRUE)
 For GLM estimation, the $R^2$ is replaced by residual deviance and AIC
 is printed. Also, the left-hand side specifies that it is the link of
 $\hat{Y}$ that has the linear representation. For example, the
-following is the result from a Poisson regression with the log link:
+following is the result from a Poisson regression with the log link,
+using the dataset `fertil2` from the `wooldridge` package
+(@wooldridge):
 
 ```{r, results='asis'}
 data(fertil2, package="wooldridge")
@@ -688,9 +746,136 @@ attr(dat, "which")
 
 ## Generate supply and demand functions
 
+This tool is to illustrate the identification problem when estimating
+demand and supply equations. The main function is `genDemSup`, which
+generates a dataset that contains price, quantity, exogenous variables
+and errors. The system is:
+
+\begin{eqnarray*}
+Q^d &=& d_1 + d_2P + d_3X + \eta\\
+Q^s &=& a_1 + a_2P + a_3Z + e\\
+\end{eqnarray*}
+
+
+The function has the following arguments:
+
+- `n`: The sample size
+- `a`: The vector of supply coefficients.
+- `d`: The vector of demand coefficients.
+- `sige`, `sigeta`, `sigX`, `sigZ`: The variances of $e$, $\eta$, $X$ and $Z$.
+
+It returns an object of class `DemSup`, with a `print` method that
+generates the equations in Latex format, and a `plot` method that
+plots the data points and a few demand and supply curves with their
+equilibrium points. The coefficients must be such that an equilibrium
+exists, which is the case of the default values. The following shows
+the system of equation with by default:
 
 ```{r, results='asis', fig.align="center", out.width="50%"}
+set.seed(1223345)
 sys <- genDemSup(200)
-sys
-plot(sys, nCurves=15)
+print(sys)
 ```
+
+The element `dat` of the object is a `data.frame` that contains $Q$,
+$P$, $X$, $Z$, $e$ and $\eta$ (as `eta`). We can therefore try to estimate the demand function by OLS:
+
+```{r, results='asis'}
+fit <- lm(Q~P+X, sys$dat)
+printReg(fit)
+```
+
+We could then plot some demand and supply with the fitted line to
+illustrate the identification problem. The arguments of `plot` are
+
+- `x`, the `DemSup` object
+- `nCurves`: The number of demand and supply curves to plot. The
+  default is all curves.
+- `nPoints`: The number of data points to plot. The default is all
+  points.
+- `fac`: This is a vector of 2. It determines the range for each
+  demand and supply curve plotted. The price range is
+  $P^*\times$`fac[1]` to $P^*\times$`fac[2]`, where $P^*$ is the
+  equilibrium price. By default it goes from $0.9P^*$ to $1.1P^*$.
+
+In the following, we plot the fitted line when $X=\bar{X}$:
+
+```{r, results='asis', fig.align="center", out.width="50%"}
+plot(sys, nCurves=10)
+pr <- predict(fit, newdata=data.frame(P=50:70, X=mean(sys$dat$X)))
+lines(50:70, pr, col=2, lty=2, lwd=2)
+```
+
+We can use the data to analyze the exogeneity condition, since we are
+given the vector of true errors. For example, if we want to estimate
+the demand, we need to show that $Z$ is exogenous. It can be done by
+regressing $Z$ on both errors and check the significance of the
+f-test:
+
+```{r, results='asis'}
+fit2 <- lm(Z~e+eta, sys$dat)
+printReg(fit2)
+testRegF(fit2)
+```
+
+We therefore, conclude that $Z$ is exogenous, because it cannot be
+explained by the error terms. We can also look at the relevance of the
+instrument by estimating the reduced form equation and test the
+significance of the coefficient of $Z$:
+
+```{r, results='asis'}
+fit2 <- lm(P~Z+X, sys$dat)
+printReg(fit2, stars=TRUE)
+```
+
+Since the coefficient of $Z$ is highly significant, we conclude that
+the instrument is relevant. We can then estimate the slope by
+two-stage least squares and plot the fitted line:
+
+```{r, results='asis', fig.align="center", out.width="50%"}
+sys$dat$Phat <- fitted(fit2)
+fit3 <- lm(Q~Phat+X, sys$dat)
+printReg(fit3)
+```
+
+```{r, results='asis', fig.align="center", out.width="50%"}
+plot(sys, nCurves=10)
+lines(50:70, pr, col=2, lty=2, lwd=2)
+pr2 <- predict(fit3, newdata=data.frame(Phat=50:70, X=mean(sys$dat$X)))
+lines(50:70, pr2, col="darkgreen", lty=2, lwd=2)
+legend("topleft", c("OLS", "TSLS"), col=c(2, "darkgreen"), lty=2, lwd=2, bty='n',
+       cex=.7)
+```
+
+The parameter values can be use to illustrate different aspect of the
+simultaneity problem. For example, we can show that the demand is
+identified only the supply shifts (`sigeta=0` and `sigX=0')
+
+```{r, results='asis', fig.align="center", out.width="50%"}
+set.seed(1122345)
+sys <- genDemSup(200, sigeta=0, sigX=0)
+plot(sys, nCurves=10)
+```
+
+We can also illustrate the weak instrument problems. The `tsls`
+function is from the `momentfit` package (@momentfit) and the `texreg`
+function from the `texreg` package (@texreg). If you want to use the
+`texreg` function to print fits using `momentfit` functions, you need
+the `extract` method in the first hidden chunk of this document.
+
+```{r, message=FALSE, results='asis'}
+library(momentfit)
+sysS <- genDemSup(200, a=c(20,1,-2))
+sysW <- genDemSup(200, a=c(20,1,0.01))
+fitS <- tsls(Q~P+X, ~X+Z, data=sysS$dat)
+fitW <- tsls(Q~P+X, ~X+Z, data=sysW$dat)
+texreg(list(Strong=fitS, Weak=fitW), digits=4, table=FALSE)
+```
+
+We see that the weakness of the instrument (represented here by
+$a_3=0.01$ instead of $a_3=-2$) increase the variance of the
+coefficients. The weakness is also clear from the first stage
+F-test. Similarly, we can see what happens if the instrument has a
+small variance by changing the value of `sigZ`. 
+
+# References

@@ -9,7 +9,7 @@ Maintainer: Pierre Chausse <pchausse@uwaterloo.ca>
 Description: Functions used in my econometrics courses to generate solutions, print results and generate data.
 Depends: R (>= 4.0.0)
 Imports: stats
-Suggests: knitr, AER, sandwich, wooldridge, stargazer
+Suggests: knitr, AER, sandwich, wooldridge, stargazer, momentfit, texreg
 License: GPL (>= 2)
 NeedsCompilation: no
 VignetteBuilder: knitr
