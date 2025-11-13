@@ -1,5 +1,8 @@
 \name{printReg}
 \alias{printReg}
+\alias{printReg.lm}
+\alias{printReg.tsls}
+\alias{printReg.formula}
 
 \title{Printing Estimated Models}
 
@@ -9,22 +12,26 @@ The function generates a Latex equation from a model estimated by
 }
 
 \usage{
-printReg(obj, digits=4, format="f", form=NULL, maxpl=5, adjrsq=FALSE, 
-         se=NULL, stars=FALSE, dist=c("t","n"), label=NULL,
-         omit=NULL, ...)
+\method{printReg}{lm}(obj, digits=4, format="f", maxpl=5,
+    adjrsq=FALSE, se=NULL, stars=FALSE, dist=c("t","n"), label=NULL,
+    omit=NULL, ...)
+
+\method{printReg}{tsls}(obj,digits=4, format='f', maxpl=5, 
+    se=NULL, stars=FALSE, label=NULL, omit=NULL,
+    strength=FALSE, Jtest=FALSE, Exo=FALSE, ...)
+
+\method{printReg}{formula}(obj, maxpl=5, label=NULL, ...)
 }
+
 \arguments{
 
-  \item{obj}{An object of class \code{lm} or \code{glm}.}
+  \item{obj}{An object used to print the regression equation.}
 
   \item{digits}{The number of digits to be printed (See
           \code{\link{formatC}}).}
   
   \item{format}{Printing format for coefficient estimates and their
           standard errors.(See \code{\link{formatC}})}
-
-  \item{form}{A formula to be converted into latex equation. Only linear
-  formulas are allowed for now.}
 
   \item{maxpl}{The maximum number of variables to be printed per line.}
 
@@ -48,6 +55,9 @@ printReg(obj, digits=4, format="f", form=NULL, maxpl=5, adjrsq=FALSE,
     \code{\link{grep}}. When specified, the equation ends by specifying
     how many variables are omitted.}
 
+  \item{strength, Jtest, Exo}{Should the first stage F-test, J-test and
+  the list of exogenous variables be printed?}
+
   \item{...}{Other argument to pass to \code{\link{format}}}
 }
 
@@ -68,6 +78,6 @@ printReg(fit)
 
 ## formula to equation
 
-printReg(form=y~x1*x2+z+I(z^2))
+printReg(y~x1*x2+z+I(z^2))
 }
 

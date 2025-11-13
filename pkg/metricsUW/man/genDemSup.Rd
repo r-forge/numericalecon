@@ -13,8 +13,8 @@ the equations.
 
 \usage{
 
-genDemSup(n, a=c(20, 1, -2), d=c(100,-1,2), sige=16,
-          sigeta=16, sigX=5, sigZ=5)
+genDemSup(n, a=c(20, 1, -2), d=c(100,-1,2,0), sige=16,
+          sigeta=16, sigX=c(5,5), sigZ=5)
 
 \method{print}{DemSup}(x, ...)
 

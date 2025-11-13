@@ -27,18 +27,27 @@ genTS <- function(n=200, frequency=12, start=c(1960,1), seed)
 
 ## Demand and Supply
 
-genDemSup <- function(n, a=c(20, 1, -2), d=c(100,-1,2), sige=16,
-                    sigeta=16, sigX=5, sigZ=5)
+genDemSup <- function(n, a=c(20, 1, -2), d=c(100,-1,2,0), sige=16,
+                    sigeta=16, sigX=c(5,5), sigZ=5)
 {
     e <- rnorm(n, 0, sqrt(sige))
     eta <- rnorm(n, 0, sqrt(sigeta))
-    X <- rnorm(n, 10, sqrt(sigX))
-    Z <- rnorm(n, 10, sqrt(sigZ)) 
-    Q <- (a[2]*(d[1]+eta+d[3]*X)-d[2]*(a[1]+a[3]*Z+e))/(a[2]-d[2])
-    P <- ((d[1]+eta+d[3]*X)-(a[1]+a[3]*Z+e))/(a[2]-d[2])
-    dat <- data.frame(P,Q,Z,X,e,eta)
+    Z <- rnorm(n, 10, sqrt(sigZ))     
+    if (d[4] == 0)
+    {
+        X <- rnorm(n, 10, sqrt(sigX[1]))
+        Q <- (a[2]*(d[1]+eta+d[3]*X)-d[2]*(a[1]+a[3]*Z+e))/(a[2]-d[2])
+        P <- ((d[1]+eta+d[3]*X)-(a[1]+a[3]*Z+e))/(a[2]-d[2])
+        dat <- data.frame(P,Q,Z,X,e,eta)
+    } else {
+        X1 <- rnorm(n, 10, sqrt(sigX[1]))
+        X2 <- rnorm(n, 10, sqrt(sigX[2]))
+        Q <- (a[2]*(d[1]+eta+d[3]*X1+d[4]*X2)-d[2]*(a[1]+a[3]*Z+e))/(a[2]-d[2])
+        P <- ((d[1]+eta+d[3]*X1+d[4]*X2)-(a[1]+a[3]*Z+e))/(a[2]-d[2])
+        dat <- data.frame(P,Q,Z,X1,X2,e,eta)
+    }
     obj <- list(dat=dat, a=a, d=d, sig=c(e=sige, eta=sigeta),
-                sigExo=c(X=sigX, Z=sigZ))
+                sigExo=list(X=sigX, Z=sigZ))
     class(obj) <- "DemSup"
     obj
 }
@@ -46,27 +55,41 @@ plot.DemSup <- function(x, y=NULL, nCurves=NULL, nPoints=NULL, fac=c(0.9,1.1), .
 {
     dat <- x$dat
     if (!is.null(nPoints))
-        dat <- dat[1:nPoints,]
-    plot(Q~P, dat, pch=21, col="lightblue", bg="lightblue",
+    {
+        n <- nPoints
+        if (n<2)
+            stop("The minimum number of points is 2")
+    } else {
+        n <- nrow(dat)
+    }
+    plot(Q~P, dat[1:n,], pch=21, col="lightblue", bg="lightblue",
          main="Demands and Supplies with their equilibrium points",
          bty='n')
-    if (is.null(nCurves))
+    if (!is.null(nCurves))
     {
-        n <- nrow(dat)
-    } else {
-        n <- nCurves
-        if (nCurves>nrow(dat))
-            stop("The number of curves cannot exceed the number of points")
+        if (nCurves < 1)
+            stop("nCurves must be greater than 0")
+        n <- min(n, nCurves)
     }
     y <- x    
     for (i in 1:n)
     {
-        curve(y$d[1]+y$d[2]*x+y$d[3]*dat$X[i]+dat$eta[i],
-              dat$P[i]*fac[1], dat$P[i]*fac[2],
-              col="green", add=TRUE)
-        curve(y$a[1]+y$a[2]*x+y$a[3]*dat$Z[i]+dat$e[i],
-              dat$P[i]*fac[1], dat$P[i]*fac[2],
-              col="orange", add=TRUE)
+        if (x$d[4] == 0)
+        {
+            curve(y$d[1]+y$d[2]*x+y$d[3]*dat$X[i]+dat$eta[i],
+                  dat$P[i]*fac[1], dat$P[i]*fac[2],
+                  col="green", add=TRUE)
+            curve(y$a[1]+y$a[2]*x+y$a[3]*dat$Z[i]+dat$e[i],
+                  dat$P[i]*fac[1], dat$P[i]*fac[2],
+                  col="orange", add=TRUE)
+        } else {
+            curve(y$d[1]+y$d[2]*x+y$d[3]*dat$X1[i]+y$d[4]*dat$X2[i]+dat$eta[i],
+                  dat$P[i]*fac[1], dat$P[i]*fac[2],
+                  col="green", add=TRUE)
+            curve(y$a[1]+y$a[2]*x+y$a[3]*dat$Z[i]+dat$e[i],
+                  dat$P[i]*fac[1], dat$P[i]*fac[2],
+                  col="orange", add=TRUE)
+        }
     }
     points(dat$P[1:n], dat$Q[1:n], pch=23, col="darkred",bg="darkred")
     grid()
@@ -76,10 +99,15 @@ plot.DemSup <- function(x, y=NULL, nCurves=NULL, nPoints=NULL, fac=c(0.9,1.1), .
 print.DemSup <- function(x, ...)
 {
     cat("\\begin{eqnarray*}\n")
-    cat("Q^d &=& ", x$d[1], ifelse(x$d[2]<0, "-", "+"), abs(x$d[2]), "P",
-        ifelse(x$d[3]<0, "-", "+"), abs(x$d[3]), "X + \\eta\\\\\n",
-        "Q^s &=& ", x$a[1], ifelse(x$a[2]<0, "-", "+"), abs(x$a[2]), "P",
-        ifelse(x$a[3]<0, "-", "+"), abs(x$a[3]), "Z + e\n",
-        "\\end{eqnarray*}\n", sep="")
+    if (x$d[4] == 0)
+        cat("Q^d &=& ", x$d[1], ifelse(x$d[2]<0, "-", "+"), abs(x$d[2]), "P",
+            ifelse(x$d[3]<0, "-", "+"), abs(x$d[3]), "X + \\eta\\\\\n", sep="")
+    else
+        cat("Q^d &=& ", x$d[1], ifelse(x$d[2]<0, "-", "+"), abs(x$d[2]), "P",
+            ifelse(x$d[3]<0, "-", "+"), abs(x$d[3]), "X_1",
+            ifelse(x$d[4]<0, "-", "+"), abs(x$d[4]), "X_2+\\eta\\\\\n", sep="")
+    cat("Q^s &=& ", x$a[1], ifelse(x$a[2]<0, "-", "+"), abs(x$a[2]), "P",
+        ifelse(x$a[3]<0, "-", "+"), abs(x$a[3]), "Z + e", sep="")
+    cat("\n\\end{eqnarray*}\n")
 }
 

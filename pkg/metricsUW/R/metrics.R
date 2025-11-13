@@ -1,140 +1,269 @@
 ## Print Tools
 
-printReg <- function(obj,digits=4, format='f', form=NULL, maxpl=5, adjrsq=FALSE, 
-                     se=NULL, stars=FALSE, dist=c("t","n"), label=NULL,
-                     omit=NULL, ...)
+printReg <- function(obj, ...)
     {
-        dist <- match.arg(dist)
-        if (is.null(label))
-            {
-                typeEQ <- "equation*"
-                label=""
-            } else {
-                typeEQ <- "equation"
-                label <- paste("\\label{",label,"}", sep="")
-            }
-        if (!is.null(omit))
-            {
-                omit <- omit[omit != "(Intercept)"]
-                chk <- lapply(omit, function(o) grep(o, names(obj$coef)))
-                chk <- sapply(1:length(chk), function(i) length(chk[[i]])==0)
-                omit <- omit[!chk]
-                if (length(omit)==0)
-                    omit <- NULL
-            }
-        if (is.null(form))
-            {                
-                cat("\\begin{",typeEQ, "}", label,"\n", sep="")
-                cat("\\begin{split}\n")
-                ncoef <- names(coef(obj))
-                if (!is.null(omit))
-                    {
-                        omit <- do.call("c", lapply(omit, function(o) grep(o, ncoef)))
-                        omit <- -unique(omit)
-                        nomit <- length(omit)
-                        add <- paste("\\mbox{ (+ ", nomit, " omitted terms)}", sep="")
-                    } else {
-                        add <- ""
-                        omit <- 1:length(ncoef)
-                    }                
-                Intercept <- attr(obj$terms, "intercept")
-                b <- formatC(abs(obj$coef), digits=digits, format=format, ...)[omit]
-                if (!is.null(se))
-                    snum <- se[omit]
-                else
-                    snum <- summary(obj)$coef[omit,2]
-                s <- formatC(snum, digits=digits, format=format, ...)
-                ncoef <- ncoef[omit]
-                if (stars)
-                    {
-                        ttest <- coef(obj)[omit]/snum
-                        if (dist=="t")
-                            pv <- 2*pt(-abs(ttest), obj$df.residual)
-                        else
-                            pv <- 2*pnorm(-abs(ttest))
-                        sym <- symnum(pv, cutpoints=c(0,.01,.05,.1,1),
-                                      symbols=c("^{***}","^{**}","^*"," "))
-                        symmess <- "\\\\& ^*\\text{pv}<0.1\\mbox{; }^{**}\\text{pv}<0.05\\mbox{; }^{***}\\text{pv}<0.01"
-                    } else {
-                        sym <- rep("", length(coef(obj)[omit]))
-                        symmess <- ""
-                    }
-                if (length(attr(obj$terms, "factors")))
-                {
-                    ny <- rownames(attr(obj$terms, "factors"))[1]                     
-                } else {
-                    ny <- as.character(formula(obj))[2]
-                }
-                ny <- paste("\\widehat{",ny,"}",sep="")
-                if (inherits(obj, "glm"))
-                    ny <- paste("\\text{link}\\left[", ny, "\\right]", sep="")
-                cat(ny,"&=")
-                if (obj$coef[1] < 0)
-                    cat("\\underset{(",s[1],")",sym[[1]],"}{-",b[1],"}", sep="")
-                else
-                    cat("\\underset{(",s[1],")",sym[[1]],"}{",b[1],"}")                    
-                if (Intercept==0)
-                        cat("~",ncoef[1], sep="")
-                j <- 1
-                if (length(b)>=2)
-                {
-                    for (i in 2:length(b))
-                    {
-                        if (j>maxpl)
-                        {
-                            j <- 1
-                            cat("\\\\&\\quad\n")
-                        }
-                        if ((obj$coef[omit])[i] < 0)
-                            cat("~-~")
-                        else
-                            cat("~+~")
-                        cat("\\underset{(",s[i],")",sym[[i]],"}{",b[i],"}~")
-                        cat(ncoef[i])
-                        j <- j+1
-                    }
-                }
-                cat(add)
-                n <- length(obj$residuals)
-                if (inherits(obj, "glm"))
-                {
-                    cat("\\\\ &\\quad n=", n, ",~~AIC=", round(obj$aic,digits))
-                    cat(",~~\\mbox{Residual Deviance}=", round(obj$deviance,digits))
-                    cat(",\\\\ &\\quad \\mbox{Null Deviance}=",
-                        round(obj$null.deviance,digits))
-                    cat(",~~\\mbox{Family}=\\mbox{", obj$family$family,
-                        "},~~\\mbox{Link}=\\mbox{", obj$family$link, "}", sep="")
-                } else {
-                    cat("\\\\ &\\quad n=", n, ",~~R^2=", round(summary(obj)$r.squared,digits))
-                    cat(", SSR=", round(sum(obj$resid^2),digits))
-                    if (adjrsq)
-                        cat(", \\bar{R}^2=", round(summary(obj)$adj,digits))
-                }
-                if (!is.null(se))
-                    cat("\\mbox{ (Robust S-E)}")
-                cat(symmess)
-                cat("\n\\end{split}\n")
-                cat("\\end{", typeEQ, "}\n", sep="")
-            } else {
-                t <- terms(form)
-                y <- rownames(attr(t, "factors"))[1]                     
-                x <- colnames(attr(t, "factors"))
-                cat("\\begin{",typeEQ, "}", label,"\n\\begin{split}\n",
-                    y,"&=\\beta_0", sep="")
-                j  <-  1
-                for (i in 1:length(x))
-                    {
-                        if (j>maxpl)
-                            {
-                                j <- 1
-                                cat("\\\\&\n")
-                            }
-                        cat("+\\beta_",i,x[i],sep="")
-                        j <- j+1
-                    }
-                cat("+u\n\\end{split}\n\\end{",typeEQ,"}", sep="")
-            }
+        UseMethod("printReg")
     }
+
+printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE, 
+                        se=NULL, stars=FALSE, dist=c("t","n"), label=NULL,
+                        omit=NULL, ...)
+{
+    dist <- match.arg(dist)
+    if (is.null(label))
+    {
+        typeEQ <- "equation*"
+        label=""
+    } else {
+        typeEQ <- "equation"
+        label <- paste("\\label{",label,"}", sep="")
+    }
+    if (!is.null(omit))
+    {
+        omit <- omit[omit != "(Intercept)"]
+        chk <- lapply(omit, function(o) grep(o, names(obj$coef)))
+        chk <- sapply(1:length(chk), function(i) length(chk[[i]])==0)
+        omit <- omit[!chk]
+        if (length(omit)==0)
+            omit <- NULL
+    }
+    cat("\\begin{",typeEQ, "}", label,"\n", sep="")
+    cat("\\begin{split}\n")
+    ncoef <- names(coef(obj))
+    if (!is.null(omit))
+    {
+        omit <- do.call("c", lapply(omit, function(o) grep(o, ncoef)))
+        omit <- -unique(omit)
+        nomit <- length(omit)
+        add <- paste("\\mbox{ (+ ", nomit, " omitted terms)}", sep="")
+    } else {
+        add <- ""
+        omit <- 1:length(ncoef)
+    }                
+    Intercept <- attr(obj$terms, "intercept")
+    b <- formatC(abs(obj$coef), digits=digits, format=format, ...)[omit]
+    if (!is.null(se))
+        snum <- se[omit]
+    else
+        snum <- summary(obj)$coef[omit,2]
+    s <- formatC(snum, digits=digits, format=format, ...)
+    ncoef <- ncoef[omit]
+    if (stars)
+    {
+        ttest <- coef(obj)[omit]/snum
+        if (dist=="t")
+            pv <- 2*pt(-abs(ttest), obj$df.residual)
+        else
+            pv <- 2*pnorm(-abs(ttest))
+        sym <- symnum(pv, cutpoints=c(0,.01,.05,.1,1),
+                      symbols=c("^{***}","^{**}","^*"," "))
+        symmess <- "\\\\& ^*\\text{pv}<0.1\\mbox{; }^{**}\\text{pv}<0.05\\mbox{; }^{***}\\text{pv}<0.01"
+    } else {
+        sym <- rep("", length(coef(obj)[omit]))
+        symmess <- ""
+    }
+    if (length(attr(obj$terms, "factors")))
+    {
+        ny <- rownames(attr(obj$terms, "factors"))[1]                     
+    } else {
+        ny <- as.character(formula(obj))[2]
+    }
+    ny <- paste("\\widehat{",ny,"}",sep="")
+    if (inherits(obj, "glm"))
+        ny <- paste("\\text{link}\\left[", ny, "\\right]", sep="")
+    cat(ny,"&=")
+    if (obj$coef[1] < 0)
+        cat("\\underset{(",s[1],")",sym[[1]],"}{-",b[1],"}", sep="")
+    else
+        cat("\\underset{(",s[1],")",sym[[1]],"}{",b[1],"}")                    
+    if (Intercept==0)
+        cat("~",ncoef[1], sep="")
+    j <- 1
+    if (length(b)>=2)
+    {
+        for (i in 2:length(b))
+        {
+            if (j>maxpl)
+            {
+                j <- 1
+                cat("\\\\&\\quad\n")
+            }
+            if ((obj$coef[omit])[i] < 0)
+                cat("~-~")
+            else
+                cat("~+~")
+            cat("\\underset{(",s[i],")",sym[[i]],"}{",b[i],"}~")
+            cat(ncoef[i])
+            j <- j+1
+        }
+    }
+    cat(add)
+    n <- length(obj$residuals)
+    if (inherits(obj, "glm"))
+    {
+        cat("\\\\ &\\quad n=", n, ",~~AIC=", round(obj$aic,digits))
+        cat(",~~\\mbox{Residual Deviance}=", round(obj$deviance,digits))
+        cat(",\\\\ &\\quad \\mbox{Null Deviance}=",
+            round(obj$null.deviance,digits))
+        cat(",~~\\mbox{Family}=\\mbox{", obj$family$family,
+            "},~~\\mbox{Link}=\\mbox{", obj$family$link, "}", sep="")
+    } else {
+        cat("\\\\ &\\quad n=", n, ",~~R^2=", round(summary(obj)$r.squared,digits))
+        cat(", SSR=", round(sum(obj$resid^2),digits))
+        if (adjrsq)
+            cat(", \\bar{R}^2=", round(summary(obj)$adj,digits))
+    }
+    if (!is.null(se))
+        cat("\\mbox{ (Robust S-E)}")
+    cat(symmess)
+    cat("\n\\end{split}\n")
+    cat("\\end{", typeEQ, "}\n", sep="")
+}
+
+printReg.formula <- function(obj, maxpl=5, label=NULL, ...)
+{
+    if (is.null(label))
+    {
+        typeEQ <- "equation*"
+        label=""
+    } else {
+        typeEQ <- "equation"
+        label <- paste("\\label{",label,"}", sep="")
+    }
+    t <- terms(obj)
+    y <- rownames(attr(t, "factors"))[1]                     
+    x <- colnames(attr(t, "factors"))
+    cat("\\begin{",typeEQ, "}", label,"\n\\begin{split}\n",
+        y,"&=\\beta_0", sep="")
+    j  <-  1
+    for (i in 1:length(x))
+    {
+        if (j>maxpl)
+        {
+            j <- 1
+            cat("\\\\&\n")
+        }
+        cat("+\\beta_",i,x[i],sep="")
+        j <- j+1
+    }
+    cat("+u\n\\end{split}\n\\end{",typeEQ,"}", sep="")
+}
+
+printReg.tsls <- function(obj,digits=4, format='f', maxpl=5, 
+                          se=NULL, stars=FALSE, label=NULL, omit=NULL,
+                          strength=FALSE, Jtest=FALSE, Exo=FALSE, ...)
+{
+    if (is.null(label))
+    {
+        typeEQ <- "equation*"
+        label=""
+    } else {
+        typeEQ <- "equation"
+        label <- paste("\\label{",label,"}", sep="")
+    }
+    if (!is.null(omit))
+    {
+        omit <- omit[omit != "(Intercept)"]
+        chk <- lapply(omit, function(o) grep(o, names(coef(obj))))
+        chk <- sapply(1:length(chk), function(i) length(chk[[i]])==0)
+        omit <- omit[!chk]
+        if (length(omit)==0)
+            omit <- NULL
+    }
+    cat("\\begin{",typeEQ, "}", label,"\n", sep="")
+    cat("\\begin{split}\n")
+    ncoef <- names(coef(obj))
+    if (!is.null(omit))
+    {
+        omit <- do.call("c", lapply(omit, function(o) grep(o, ncoef)))
+        omit <- -unique(omit)
+        nomit <- length(omit)
+        add <- paste("\\mbox{ (+ ", nomit, " omitted terms)}", sep="")
+    } else {
+        add <- ""
+        omit <- 1:length(ncoef)
+    }                
+    Intercept <- attr(attr(obj@model@modelF, "terms"), "intercept")
+    b <- formatC(abs(coef(obj)), digits=digits, format=format, ...)[omit]
+    if (!is.null(se))
+        snum <- se[omit]
+    else
+        snum <- sqrt(diag(vcov(obj)))[omit]
+    s <- formatC(snum, digits=digits, format=format, ...)
+    ncoef <- ncoef[omit]
+    if (stars)
+    {
+        ttest <- coef(obj)[omit]/snum
+        pv <- 2*pnorm(-abs(ttest))
+        sym <- symnum(pv, cutpoints=c(0,.01,.05,.1,1),
+                      symbols=c("^{***}","^{**}","^*"," "))
+        symmess <- "\\\\& ^*\\text{pv}<0.1\\mbox{; }^{**}\\text{pv}<0.05\\mbox{; }^{***}\\text{pv}<0.01"
+    } else {
+        sym <- rep("", length(coef(obj)[omit]))
+        symmess <- ""
+    }
+    ny <- colnames(obj@model@modelF)[1]
+    ny <- paste("\\widehat{",ny,"}",sep="")
+    cat(ny,"&=")
+    if (coef(obj)[1] < 0)
+        cat("\\underset{(",s[1],")",sym[[1]],"}{-",b[1],"}", sep="")
+    else
+        cat("\\underset{(",s[1],")",sym[[1]],"}{",b[1],"}")                    
+    if (Intercept==0)
+        cat("~",ncoef[1], sep="")
+    j <- 1
+    if (length(b)>=2)
+    {
+        for (i in 2:length(b))
+        {
+            if (j>maxpl)
+            {
+                j <- 1
+                cat("\\\\&\\quad\n")
+            }
+            if ((coef(obj)[omit])[i] < 0)
+                cat("~-~")
+            else
+                cat("~+~")
+            cat("\\underset{(",s[i],")",sym[[i]],"}{",b[i],"}~")
+            cat(ncoef[i])
+            j <- j+1
+        }
+    }
+    cat(add)
+    n <- modelDims(obj@model)$n
+    cat("\\\\ &\\quad \\text{TSLS: n}=", n)
+    if (Jtest)
+        if (!is.na(specTest(obj)@test[3]))
+            cat(",~\\text{Jtest}=", round(specTest(obj)@test[1],digits), " (\\text{pv}=",
+                round(specTest(obj)@test[3],digits), ")", sep="")
+    if (!is.null(se))
+        cat("\\mbox{; (Robust S-E)}")
+    if (strength)
+    {
+        st <- momentStrength(obj@model)$strength
+        cat("\\\\ &\\quad \\text{First Stage: } ")
+        for (i in 1:nrow(st))
+        {
+            cat(rownames(st)[i], "\\text{: }[\\text{F}(", st[i,2], ",", st[i,3],
+                ")=", round(st[i,1], digits), "\\text{, pv}=",
+                round(st[i,4], digits), "]", sep="")
+            if (i<nrow(st))
+                cat("\\\\ &\\qquad\\qquad\\qquad~")
+        }
+    }
+    if (Exo)
+    {
+        exo <- modelDims(obj@model)$momNames
+        exo <- exo[exo!="(Intercept)"]
+        cat("\\\\ &\\quad \\text{Exogenous: } ")
+        cat("~\\text{", paste(exo, collapse=", ", sep=""), "}", sep="")
+    }
+    cat(symmess)
+    cat("\n\\end{split}\n")
+    cat("\\end{", typeEQ, "}\n", sep="")
+}
+
 
 ## print method for solution generators
 

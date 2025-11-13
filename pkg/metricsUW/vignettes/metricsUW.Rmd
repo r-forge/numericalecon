@@ -23,7 +23,7 @@ header-includes:
 ---
 
 
-```{r extract, echo-FALSE, message=FALSE}
+```{r extract, echo=FALSE, message=FALSE}
 library(texreg)
 setMethod("extract", "gmmfit", 
           function(model, includeJTest=TRUE, includeFTest=TRUE, ...)
@@ -93,12 +93,13 @@ library(metricsUW)
 
 # Printing regression results in equation format
 
-To print a regression result from `lm` or `glm`, the function
-`printReg` generates a latex equation with the coefficient estimates
-and their standard errors. To have the equation printed in Latex
-format in a R-Markdown document, the chunk option `results='asis'`
-must be added. For example, the following is an estimated wage
-equation using the `PSID1976` dataset from the `AER` package (@aer):
+To print a regression result from `lm` or `glm`, the method `printReg`
+applied to `lm` and `glm` objects generates a latex equation with the
+coefficient estimates and their standard errors. To have the equation
+printed in Latex format in a R-Markdown document, the chunk option
+`results='asis'` must be added. For example, the following is an
+estimated wage equation using the `PSID1976` dataset from the `AER`
+package (@aer):
 
 ```{r, results='asis'}
 data(PSID1976, package="AER")
@@ -146,12 +147,11 @@ fit3 <- glm(children~educ+age+I(age^2)+catholic+electric+radio+tv+heduc,
 printReg(fit3, maxpl=3, stars=TRUE)
 ```
 
-If we just want to create a regression equation from a formula, we
-just set the argument `form` to the desired formula. Here is an
-example:
+If we just want to create a regression equation from a formula, the
+method admits objects of class `formula`. Here is an example:
 
 ```{r, results='asis'}
-printReg(form=log(wage)~education*female+age+I(age^2))
+printReg(log(wage)~education*female+age+I(age^2), maxpl=3)
 ```
 
 
@@ -877,5 +877,44 @@ $a_3=0.01$ instead of $a_3=-2$) increase the variance of the
 coefficients. The weakness is also clear from the first stage
 F-test. Similarly, we can see what happens if the instrument has a
 small variance by changing the value of `sigZ`. 
+
+The tool also offers the possibility of having an over-identified
+model. By default, we have `d=c(100, -1, 2, 0)` and `sigX=c(5,5)`,
+which implies that only one exogenous variable is included in the
+demand function. By replacing `d[4]` by a non-zero value, the demand
+becomes an equation with the exogenous variables $X_1$ and $X_2$, and
+`sigX` contains the variance of the two variables:
+
+```{r, results='asis', out.width="50%", fig.align="center"}
+sys2 <- genDemSup(n=200, d=c(100, -1, 2, 0.5))
+print(sys2)
+plot(sys2, nCurve=15)
+```
+
+We can test the strength of the instruments using the `testRegF` function:
+
+```{r, results='asis'}
+fitu <- lm(P~X1+X2+Z, sys2$dat)
+fitr <- lm(P~Z, sys2$dat)
+printReg(fitu)
+printReg(fitr)
+testRegF(fitu, fitr)
+```
+
+We therefore have strong instruments. We can also test the exogeneity
+of the instruments, by using the `specTest` method of `momentfit` or
+the `printReg` method for objects of class `tsls`:
+
+```{r, results='asis'}
+fit <- tsls(Q~P+Z, ~X1+X2+Z, data=sys2$dat)
+printReg(fit, strength=TRUE, Jtest=TRUE, Exo=TRUE)
+```
+
+```{r}
+specTest(fit)
+```
+
+
+
 
 # References

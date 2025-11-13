@@ -5,15 +5,20 @@ importFrom("stats", "coef", "formula", "pnorm", "pt", "symnum",
            "nobs", "vcov", "residuals", "arima.sim", "ts", "runif",
            "rnorm")
 
-
-export(printReg, print.metricsSol, testMean, ciMean, testDiffMeans,
+importFrom("momentfit", "coef", "vcov", "momentStrength", "modelDims",
+           "model.matrix", "specTest")
+ 
+export(print.metricsSol, testMean, ciMean, testDiffMeans,
        ciDiffMeans, testVar, ciVar, testDiffVar, testRegCoef, ciRegCoef,
        testLinRegCoefs, testRegF, genTS, plot.DemSup, print.DemSup,
-       genDemSup)
+       genDemSup, printReg.lm, printReg.tsls, printReg.formula, printReg)
 
 S3method(print, metricsSol)
 S3method(plot, DemSup)
 S3method(print, DemSup)
+S3method(printReg, lm)
+S3method(printReg, tsls)
+S3method(printReg, formula)
 
 
 
