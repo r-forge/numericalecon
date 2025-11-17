@@ -1,3 +1,56 @@
+## Extract for tsls
+
+setMethod("extract", "gmmfit", 
+          function(model, includeJTest=TRUE, includeFTest=TRUE, ...)
+              {
+                  s <- summary(model, ...)
+                  spec <- modelDims(model@model)
+                  coefs <- s@coef
+                  names <- rownames(coefs)
+                  coef <- coefs[, 1]
+                  se <- coefs[, 2]
+                  pval <- coefs[, 4]
+                  n <- model@model@n
+                  gof <- numeric()
+                  gof.names <- character()
+                  gof.decimal <- logical()
+                  if (includeJTest) {
+                      if (spec$k == spec$q)
+                          {
+                              obj.fcn <- NA
+                              obj.pv <- NA
+                          } else {
+                              obj.fcn <- s@specTest@test[1]
+                              obj.pv <- s@specTest@test[3]
+                          }
+                      gof <- c(gof, obj.fcn, obj.pv)
+                      gof.names <- c(gof.names, "J-test Statistics", "J-test p-value")
+                      gof.decimal <- c(gof.decimal, TRUE, TRUE)
+                  }
+                  if (includeFTest) {
+                      str <- s@strength$strength
+                      if (is.null(str))
+                          {
+                              gof <- c(gof, NA)
+                              gof.names <- c(gof.names, "First Stage F-stats")
+                              gof.decimal <- c(gof.decimal, TRUE)
+                          } else {
+                              for (i in 1:nrow(str))
+                                  {
+                                      gof <- c(gof, str[i,1])
+                                      gofn <- paste("First Stage F-stats(",
+                                                    rownames(str)[i], ")", sep="")
+                                      gof.names <- c(gof.names, gofn)
+                                      gof.decimal <- c(gof.decimal, TRUE)
+                                  }
+                          }
+                  }
+                  tr <- createTexreg(coef.names = names, coef = coef, se = se, 
+                                     pvalues = pval, gof.names = gof.names, gof = gof, 
+                                     gof.decimal = gof.decimal)
+                  return(tr)
+              })
+
 ## TS generator
 
 genTS <- function(n=200, frequency=12, start=c(1960,1), seed)

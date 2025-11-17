@@ -8,8 +8,8 @@ Author: Pierre Chausse [aut, cre]
 Maintainer: Pierre Chausse <pchausse@uwaterloo.ca>
 Description: Functions used in my econometrics courses to generate solutions, print results and generate data.
 Depends: R (>= 4.0.0)
-Imports: stats, momentfit
-Suggests: knitr, AER, sandwich, wooldridge, stargazer, texreg
+Imports: stats, momentfit, texreg, methods
+Suggests: knitr, AER, sandwich, wooldridge, stargazer
 License: GPL (>= 2)
 NeedsCompilation: no
 VignetteBuilder: knitr

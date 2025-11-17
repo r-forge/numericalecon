@@ -6,8 +6,12 @@ importFrom("stats", "coef", "formula", "pnorm", "pt", "symnum",
            "rnorm")
 
 importFrom("momentfit", "coef", "vcov", "momentStrength", "modelDims",
-           "model.matrix", "specTest")
+           "model.matrix", "specTest", "summary")
+
+importFrom("texreg", "extract", "createTexreg")
  
+importFrom("methods", "setMethod")
+
 export(print.metricsSol, testMean, ciMean, testDiffMeans,
        ciDiffMeans, testVar, ciVar, testDiffVar, testRegCoef, ciRegCoef,
        testLinRegCoefs, testRegF, genTS, plot.DemSup, print.DemSup,

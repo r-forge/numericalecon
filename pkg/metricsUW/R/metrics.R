@@ -257,7 +257,7 @@ printReg.tsls <- function(obj,digits=4, format='f', maxpl=5,
         exo <- modelDims(obj@model)$momNames
         exo <- exo[exo!="(Intercept)"]
         cat("\\\\ &\\quad \\text{Exogenous: } ")
-        cat("~\\text{", paste(exo, collapse=", ", sep=""), "}", sep="")
+        cat("~", paste(exo, collapse=",~", sep=""), sep="")
     }
     cat(symmess)
     cat("\n\\end{split}\n")

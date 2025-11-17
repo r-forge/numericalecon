@@ -23,61 +23,6 @@ header-includes:
 ---
 
 
-```{r extract, echo=FALSE, message=FALSE}
-library(texreg)
-setMethod("extract", "gmmfit", 
-          function(model, includeJTest=TRUE, includeFTest=TRUE, ...)
-          {
-              s <- summary(model, ...)
-              spec <- modelDims(model@model)
-              coefs <- s@coef
-              names <- rownames(coefs)
-              coef <- coefs[, 1]
-              se <- coefs[, 2]
-              pval <- coefs[, 4]
-              n <- model@model@n
-              gof <- numeric()
-              gof.names <- character()
-              gof.decimal <- logical()
-              if (includeJTest) {
-                  if (spec$k == spec$q)
-                  {
-                      obj.fcn <- NA
-                      obj.pv <- NA
-                  } else {
-                      obj.fcn <- s@specTest@test[1]
-                      obj.pv <- s@specTest@test[3]
-                  }
-                  gof <- c(gof, obj.fcn, obj.pv)
-                  gof.names <- c(gof.names, "J-test Statistics", "J-test p-value")
-                  gof.decimal <- c(gof.decimal, TRUE, TRUE)
-              }
-              if (includeFTest) {
-                  str <- s@strength$strength
-                  if (is.null(str))
-                  {
-                      gof <- c(gof, NA)
-                      gof.names <- c(gof.names, "First Stage F-stats")
-                      gof.decimal <- c(gof.decimal, TRUE)
-                  } else {
-                      for (i in 1:nrow(str))
-                      {
-                          gof <- c(gof, str[i,1])
-                          gofn <- paste("First Stage F-stats(",
-                                        rownames(str)[i], ")", sep="")
-                          gof.names <- c(gof.names, gofn)
-                          gof.decimal <- c(gof.decimal, TRUE)
-                      }
-                  }
-              }
-              tr <- createTexreg(coef.names = names, coef = coef, se = se, 
-                                 pvalues = pval, gof.names = gof.names, gof = gof, 
-                                 gof.decimal = gof.decimal)
-              return(tr)
-          })
-```
-
-
 # Introduction \label{sec:intro}
 
 I use many R functions (@rbase) in my courses to print regression
@@ -859,11 +804,12 @@ plot(sys, nCurves=10)
 
 We can also illustrate the weak instrument problems. The `tsls`
 function is from the `momentfit` package (@momentfit) and the `texreg`
-function from the `texreg` package (@texreg). If you want to use the
-`texreg` function to print fits using `momentfit` functions, you need
-the `extract` method in the first hidden chunk of this document.
+function from the `texreg` package (@texreg). The `extract` method
+needed to run `texreg` on `tsls` objects is included in the
+`metricsUW` package.
 
 ```{r, message=FALSE, results='asis'}
+library(texreg)
 library(momentfit)
 sysS <- genDemSup(200, a=c(20,1,-2))
 sysW <- genDemSup(200, a=c(20,1,0.01))
@@ -913,8 +859,5 @@ printReg(fit, strength=TRUE, Jtest=TRUE, Exo=TRUE)
 ```{r}
 specTest(fit)
 ```
-
-
-
 
 # References
