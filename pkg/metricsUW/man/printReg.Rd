@@ -20,7 +20,8 @@ The function generates a Latex equation from a model estimated by
     se=NULL, stars=FALSE, label=NULL, omit=NULL,
     strength=FALSE, Jtest=FALSE, Exo=FALSE, ...)
 
-\method{printReg}{formula}(obj, maxpl=5, label=NULL, ...)
+\method{printReg}{formula}(obj, maxpl=5, label=NULL, coef="\\\\beta",
+    error="\\\\epsilon", ...)
 }
 
 \arguments{
@@ -56,7 +57,11 @@ The function generates a Latex equation from a model estimated by
     how many variables are omitted.}
 
   \item{strength, Jtest, Exo}{Should the first stage F-test, J-test and
-  the list of exogenous variables be printed?}
+    the list of exogenous variables be printed?}
+
+  \item{coef, error}{What Greek letters to use for coefficients and
+  error term? Note that two backslashes is needed for Greek letter. It
+  is also possible to use normal letter and omit the backslashes.}
 
   \item{...}{Other argument to pass to \code{\link{format}}}
 }

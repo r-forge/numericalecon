@@ -3,7 +3,7 @@ importFrom("graphics", "plot", "lines", "legend", "curve", "grid", "points")
 importFrom("stats", "coef", "formula", "pnorm", "pt", "symnum",
            "terms", "lm", "qt", "qnorm", "sd", "qchisq", "var", "qf",
            "nobs", "vcov", "residuals", "arima.sim", "ts", "runif",
-           "rnorm")
+           "rnorm","na.omit")
 
 importFrom("momentfit", "coef", "vcov", "momentStrength", "modelDims",
            "model.matrix", "specTest", "summary")

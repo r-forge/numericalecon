@@ -18,10 +18,11 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
         typeEQ <- "equation"
         label <- paste("\\label{",label,"}", sep="")
     }
+    beta <- na.omit(coef(obj))
     if (!is.null(omit))
     {
         omit <- omit[omit != "(Intercept)"]
-        chk <- lapply(omit, function(o) grep(o, names(obj$coef)))
+        chk <- lapply(omit, function(o) grep(o, names(beta)))
         chk <- sapply(1:length(chk), function(i) length(chk[[i]])==0)
         omit <- omit[!chk]
         if (length(omit)==0)
@@ -29,7 +30,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
     }
     cat("\\begin{",typeEQ, "}", label,"\n", sep="")
     cat("\\begin{split}\n")
-    ncoef <- names(coef(obj))
+    ncoef <- names(beta)
     if (!is.null(omit))
     {
         omit <- do.call("c", lapply(omit, function(o) grep(o, ncoef)))
@@ -41,7 +42,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
         omit <- 1:length(ncoef)
     }                
     Intercept <- attr(obj$terms, "intercept")
-    b <- formatC(abs(obj$coef), digits=digits, format=format, ...)[omit]
+    b <- formatC(abs(beta), digits=digits, format=format, ...)[omit]
     if (!is.null(se))
         snum <- se[omit]
     else
@@ -50,7 +51,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
     ncoef <- ncoef[omit]
     if (stars)
     {
-        ttest <- coef(obj)[omit]/snum
+        ttest <- beta[omit]/snum
         if (dist=="t")
             pv <- 2*pt(-abs(ttest), obj$df.residual)
         else
@@ -59,7 +60,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
                       symbols=c("^{***}","^{**}","^*"," "))
         symmess <- "\\\\& ^*\\text{pv}<0.1\\mbox{; }^{**}\\text{pv}<0.05\\mbox{; }^{***}\\text{pv}<0.01"
     } else {
-        sym <- rep("", length(coef(obj)[omit]))
+        sym <- rep("", length(beta[omit]))
         symmess <- ""
     }
     if (length(attr(obj$terms, "factors")))
@@ -72,7 +73,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
     if (inherits(obj, "glm"))
         ny <- paste("\\text{link}\\left[", ny, "\\right]", sep="")
     cat(ny,"&=")
-    if (obj$coef[1] < 0)
+    if (beta[1] < 0)
         cat("\\underset{(",s[1],")",sym[[1]],"}{-",b[1],"}", sep="")
     else
         cat("\\underset{(",s[1],")",sym[[1]],"}{",b[1],"}")                    
@@ -88,7 +89,7 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
                 j <- 1
                 cat("\\\\&\\quad\n")
             }
-            if ((obj$coef[omit])[i] < 0)
+            if ((beta[omit])[i] < 0)
                 cat("~-~")
             else
                 cat("~+~")
@@ -120,7 +121,8 @@ printReg.lm <- function(obj,digits=4, format='f', maxpl=5, adjrsq=FALSE,
     cat("\\end{", typeEQ, "}\n", sep="")
 }
 
-printReg.formula <- function(obj, maxpl=5, label=NULL, ...)
+printReg.formula <- function(obj, maxpl=5, label=NULL, coef="\\beta",
+                             error="\\epsilon", ...)
 {
     if (is.null(label))
     {
@@ -134,7 +136,7 @@ printReg.formula <- function(obj, maxpl=5, label=NULL, ...)
     y <- rownames(attr(t, "factors"))[1]                     
     x <- colnames(attr(t, "factors"))
     cat("\\begin{",typeEQ, "}", label,"\n\\begin{split}\n",
-        y,"&=\\beta_0", sep="")
+        y,"&=", coef, "_0", sep="")
     j  <-  1
     for (i in 1:length(x))
     {
@@ -143,10 +145,10 @@ printReg.formula <- function(obj, maxpl=5, label=NULL, ...)
             j <- 1
             cat("\\\\&\n")
         }
-        cat("+\\beta_",i,x[i],sep="")
+        cat("+", coef, "_",i,x[i],sep="")
         j <- j+1
     }
-    cat("+u\n\\end{split}\n\\end{",typeEQ,"}", sep="")
+    cat("+",error,"\n\\end{split}\n\\end{",typeEQ,"}", sep="")
 }
 
 printReg.tsls <- function(obj,digits=4, format='f', maxpl=5, 
@@ -234,22 +236,36 @@ printReg.tsls <- function(obj,digits=4, format='f', maxpl=5,
     n <- modelDims(obj@model)$n
     cat("\\\\ &\\quad \\text{TSLS: n}=", n)
     if (Jtest)
-        if (!is.na(specTest(obj)@test[3]))
-            cat(",~\\text{Jtest}=", round(specTest(obj)@test[1],digits), " (\\text{pv}=",
-                round(specTest(obj)@test[3],digits), ")", sep="")
+    {
+        jt <- try(specTest(obj), silent=TRUE)
+        cat(",~\\text{Jtest}=")        
+        if (!inherits(jt, "try-error"))
+        {            
+            if (!is.na(jt@test[3]))
+                cat(round(jt@test[1],digits), " (\\text{pv}=",
+                    round(jt@test[3],digits), ")", sep="")
+        } else {
+            cat("~\\text{Failed}")
+        }
+    }
     if (!is.null(se))
         cat("\\mbox{; (Robust S-E)}")
     if (strength)
     {
-        st <- momentStrength(obj@model)$strength
+        st <- try(momentStrength(obj@model)$strength, silent=TRUE)
         cat("\\\\ &\\quad \\text{First Stage: } ")
-        for (i in 1:nrow(st))
+        if (!inherits(st, "try-error"))
         {
-            cat(rownames(st)[i], "\\text{: }[\\text{F}(", st[i,2], ",", st[i,3],
-                ")=", round(st[i,1], digits), "\\text{, pv}=",
-                round(st[i,4], digits), "]", sep="")
-            if (i<nrow(st))
-                cat("\\\\ &\\qquad\\qquad\\qquad~")
+            for (i in 1:nrow(st))
+            {
+                cat(rownames(st)[i], "\\text{: }[\\text{F}(", st[i,2], ",", st[i,3],
+                    ")=", round(st[i,1], digits), "\\text{, pv}=",
+                    round(st[i,4], digits), "]", sep="")
+                if (i<nrow(st))
+                    cat("\\\\ &\\qquad\\qquad\\qquad~")
+            }
+        } else {
+            cat("\\text{Failed}\\\\ &\\qquad\\qquad\\qquad~")
         }
     }
     if (Exo)
@@ -470,7 +486,14 @@ testDiffMeans <- function(x1, x2, h0, size=.05, alter=c("diff","greater","less")
         distAs <- "\\sim"
     } else {
         dist <- "N(0,1)"
-        mes2 <- " (The N(0,1) is an approximation based on the C.L.T. because the distribution of the data is unknown)"
+        if (assume != "Normal" & assumev=="same")
+            {
+                mes2 <- " (The N(0,1) is an approximation based on the C.L.T. because the distribution of the data is unknown)"
+            } else if (assume != "Normal" & assumev!="same") {
+                mes2 <- " (The N(0,1) is an approximation based on the C.L.T. because the distribution of the data is unknown and the variances are not the same)"
+            } else {
+                mes2 <- " (The N(0,1) is an approximation based on the C.L.T. because the variances are not the same)"
+            }                
         distAs <- "\\approx"
     }
     rhs <- if(h0==0) {""} else if(h0<0) {paste("+",-h0,sep="")} else {paste("-",h0,sep="")}
