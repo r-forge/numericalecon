@@ -99,7 +99,6 @@ method admits objects of class `formula`. Here is an example:
 printReg(log(wage)~education*female+age+I(age^2), maxpl=3)
 ```
 
-
 # Solution to inference questions
 
 The way the functions are organized is as follows. First the inference
@@ -652,6 +651,54 @@ testRegF(assume="Normal", size=0.1, SSRu=62948.16, SSRr=66840.94,
 
 In this section, I present some functions I used in the course as
 tools for teaching or to generate random assignments. 
+
+## Probability using a normal table
+
+Let $X$ be distributed as $N(\mu,\sigma^2)$. In intro to statistics
+courses, students have to compute $Pr(X\leq a)$, $Pr(X\geq a)$ or
+$Pr(a\leq X\leq b)$ using a standardized normal table. The function
+`probFromTable` explains using a latex equation, how to compute the
+probability. The main arguments are `a`, `b` (if we want the last
+probability), `type` (`"less"` or `"greater"` for the first two
+probabilities), `mu` (E(X)), `sig2` (Var(X)), digits (the number of
+digits shown in the normal table), `varName` (the name of the random
+variable to be printed) and `approx` (is the normal an
+approximation). By default, the function assumes that the normal table
+shows $Pr(0\leq Z \leq z)$. Here is a few examples:
+
+- $Pr(X\leq 8)$ for $X\sim N(10,2)$
+
+```{r, results='asis'}
+probFromTable(a=8, mu=10, sig2=2)
+```
+
+When generating a solution from exams or problem sets, we may be
+interested in the numeric solution without the equation. This is done
+by setting the argument `print` to `FALSE`:
+
+```{r}
+probFromTable(a=8, mu=10, sig2=2, print=FALSE)
+```
+
+- $Pr(X\geq 11)$ for $X\sim N(10,2)$
+
+```{r, results='asis'}
+probFromTable(a=11, type="greater", mu=10, sig2=2)
+```
+
+- $Pr(40 \leq Y \leq 48)$ for $Y\sim Binomial(100,0.5)$, which can be approximated by a $N(50,25)$. Note that `a` does not have to be the smallest number.
+
+```{r, results='asis'}
+probFromTable(a=48, b=40,  mu=50, sig2=25, approx=TRUE, varName="Y")
+```
+
+In some textbooks, the normal table shows the CDF instead of $Pr(0\leq
+Z\leq z)$. If that's the case, we can set the argument `CDF` to
+`TRUE`:
+
+```{r, results='asis'}
+probFromTable(a=48, b=40,  mu=50, sig2=25, approx=TRUE, varName="Y", CDF=TRUE)
+```
 
 ## Generate time series
 

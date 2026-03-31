@@ -1,6 +1,6 @@
 Package: metricsUW
 Version: 0.1-0
-Date: 2025-11-06
+Date: 2026-03-30
 Title:  Tools for Teaching Econometrics
 Authors@R: person(given="Pierre", family="Chausse", role=c("aut","cre"),
 	     	    email="pchausse@uwaterloo.ca")

@@ -164,3 +164,169 @@ print.DemSup <- function(x, ...)
     cat("\n\\end{eqnarray*}\n")
 }
 
+probFromTable <- function(a, b=NULL, type=c("less","greater"), digits=3,
+                          mu=0, sig2=1, varName="X", approx=FALSE, print=TRUE,
+                          CDF=FALSE)
+{
+    type <- match.arg(type)
+    approx <- ifelse(approx, "\\approx", "=")
+    if (toupper(varName) == "Z")
+        varName <- "X"
+    if (is.null(b))
+    {
+        z <- (a-mu)/sqrt(sig2)
+        approxz <- ifelse(z != round(z,2), "\\approx", "=")
+        z <- round(z,2)
+        ineq <- ifelse(type=="less", "\\leq", "\\geq")
+        m <- paste(varName, ineq, a, ")&", approx, "&",
+                   "\\Pr\\left(Z", ineq, "\\frac{", a, "-", ifelse(mu<0, "(", ""), mu,
+                   ifelse(mu<0, ")", ""),
+                   "}{\\sqrt{", sig2, "}}\\right)\\\\\n&", approxz, "&",
+                   "Pr(Z", ineq, z, ")\\\\\n")
+        if (type == "less")
+        {
+            if (z > 0)
+            {
+                if (CDF)
+                {
+                    m1 <- paste("&\\approx&", round(pnorm(z),digits))
+                } else {
+                    m1 <- paste("&=&+Pr(0\\leq Z \\leq", z, ")\\\\\n&\\approx&",
+                                "0.5+",round(pnorm(z)-.5,digits), "\\\\\n&=&", 0.5+round(pnorm(z)-.5,digits))
+                }
+                p <- 0.5+round(pnorm(z)-.5,digits)
+            } else {
+                if (CDF)
+                {
+                    m1 <- paste("&=&Pr(Z\\geq", -z, ")\\\\\n&=&1-Pr(Z\\leq", -z, ")\\\\\n&\\approx&",
+                                "1-", round(pnorm(-z), digits), "\\\\\n&=&", 1-round(pnorm(-z),digits))
+                } else {
+                    m1 <- paste("&=&0.5-Pr(", z, "\\leq Z \\leq 0)\\\\\n&=&0.5-Pr(0\\leq Z\\leq",
+                                -z, ")\\\\\n",
+                                "&\\approx&0.5-", round(pnorm(-z)-.5,digits), "\\\\\n&=&",
+                                1-round(pnorm(-z),digits))
+                }
+                p <- 1-round(pnorm(-z),digits)
+            }
+        } else {
+            if (z > 0)
+            {
+                if (CDF)
+                {
+                    m1 <- paste("&=&1-Pr(Z\\leq", z, ")\\\\\n&\\approx&",
+                                "1-", round(pnorm(z), digits), "\\\\\n&=&", 1-round(pnorm(z),digits))
+                } else {                
+                    m1 <- paste("&=&0.5-Pr(0\\leq Z \\leq", z, ")\\\\\n&\\approx&",
+                                "0.5-",round(pnorm(z)-.5,digits), "\\\\\n&=&", 0.5-round(pnorm(z)-.5,digits))
+                }
+                p <- 0.5-round(pnorm(z)-.5,digits)
+            } else {
+                if (CDF)
+                {
+                    m1 <- paste("&=&1-Pr(Z\\leq", -z, ")\\\\\n&\\approx&",
+                                "1-", round(pnorm(-z), digits), "\\\\\n&=&", 1-round(pnorm(-z),digits))
+                } else {                                
+                    m1 <- paste("&=&0.5+Pr(", z, "\\leq Z \\leq 0)\\\\\n&=&0.5+Pr(0\\leq Z\\leq",
+                                -z, ")\\\\\n",
+                                "&\\approx&0.5+", round(pnorm(-z)-.5,digits), "\\\\\n&=&",
+                                round(pnorm(-z),digits))
+                }
+                p <- round(pnorm(-z),digits)
+            }            
+        }
+    } else {
+        a <- sort(c(a,b))
+        z1 <- (a[1]-mu)/sqrt(sig2)
+        z2 <- (a[2]-mu)/sqrt(sig2)
+        approxz <- ifelse(z1!=round(z1,2) | z2!=round(z2,2), "\\approx", "=")
+        z1 <- round(z1,2)
+        z2 <- round(z2,2)
+        m <- paste(a[1], "\\leq", varName, "\\leq", a[2], ")&", approx, "&",
+                   "Pr\\left(\\frac{", a[1], "-", ifelse(mu<0, "(", ""), mu,
+                   ifelse(mu<0, ")", ""), "}{\\sqrt{", sig2, "}}",
+                   "\\leq Z \\leq",
+                   "\\frac{", a[2], "-", ifelse(mu<0, "(", ""), mu, ifelse(mu<0, ")", ""),
+                   "}{\\sqrt{", sig2, "}}\\right)",
+                   "\\\\\n&", approxz, "&Pr(", z1, "\\leq Z \\leq", z2, ")\\\\\n")
+        if (z1==z2)
+        {
+            m1 <- "&=& 0"
+            p <- 0
+        } else  if (z1==0) {
+            if (CDF)
+            {
+                m1 <- paste("&=&Pr(Z\\leq", z2,")-0.5\\\\\n&\\approx&",
+                            round(pnorm(z2), digits), "-0.5\\\\\n&=&",
+                            round(pnorm(z2),digits)-0.5)
+            } else {
+                m1 <- paste("&\\approx&",round(pnorm(z2)-0.5,digits))
+            }
+            p <- round(pnorm(z2)-0.5,digits)
+        } else if (z2==0) {
+            if (CDF)
+            {
+                m1 <- paste("&=&Pr(0\\leq Z\\leq", -z1, ")\\\\\n",
+                            "&=&Pr(Z\\leq", -z1,")-0.5\\\\\n&\\approx&",
+                            round(pnorm(-z1), digits), "-0.5\\\\\n&=&",
+                            round(pnorm(-z1),digits)-0.5)
+            } else {            
+                m1 <- paste("&=&Pr(0\\leq Z\\leq", -z1, ")\\\\\n&\\approx&",round(pnorm(z1)-0.5,digits))
+            }
+            p <- round(pnorm(z1)-0.5, digits)
+        } else if (z1<0 & z2<0){
+            if (CDF)
+            {
+                m1 <- paste("&=&Pr(", -z2, "\\leq Z \\leq", -z1, ")\\\\\n",
+                            "&=&Pr(Z\\leq", -z1,")-","Pr(Z\\leq", -z2,")\\\\\n&\\approx&",
+                            round(pnorm(-z1), digits), "-", round(pnorm(-z2), digits),"\\\\\n&=&",
+                            round(pnorm(-z1),digits)-round(pnorm(-z2),digits))
+            } else {            
+                m1 <- paste("&=&Pr(", z1, "\\leq Z \\leq 0)-Pr(", z2, "\\leq Z \\leq 0)",
+                            "\\\\\n&=&",
+                            "Pr(0\\leq Z\\leq ", -z1, ")-Pr(0\\leq Z\\leq", -z2, ")",
+                            "\\\\\n&\\approx&",round(pnorm(-z1)-0.5,digits), "-", round(pnorm(-z2)-.5,digits),
+                            "\\\\\n&=&",round(pnorm(-z1)-0.5,digits)-round(pnorm(-z2)-.5,digits))
+            }
+            p <- round(pnorm(-z1)-0.5,digits)-round(pnorm(-z2)-.5,digits)
+        } else if (z1<0 & z2>0) {
+            if (CDF)
+            {
+                m1 <- paste("&=&Pr(Z\\leq", z2, ")-Pr(Z\\leq", z1, ")\\\\\n",
+                            "&=&Pr(Z\\leq", z2, ")-Pr(Z\\geq", -z1, ")\\\\\n",
+                            "&=&Pr(Z\\leq", z2, ")-[1-Pr(Z\\leq", -z1, ")]\\\\\n",
+                            "\\\\\n&\\approx&",
+                            round(pnorm(z2), digits), "-[1-", round(pnorm(-z1), digits),"]\\\\\n&=&",
+                            round(pnorm(z2),digits)-(1-round(pnorm(-z1),digits)))
+            } else {                        
+                m1 <- paste("&=&Pr(", z1, "\\leq Z \\leq 0)+Pr(0\\leq Z\\leq", z2, ")",
+                            "\\\\\n&=&",
+                            "Pr(0\\leq Z\\leq", -z1,")+Pr(0\\leq Z\\leq", z2, ")",
+                            "\\\\\n&\\approx&",round(pnorm(-z1)-0.5,digits), "+", round(pnorm(z2)-.5,digits),
+                            "\\\\\n&=&",round(pnorm(-z1)-0.5,digits)+round(pnorm(z2)-.5,digits))
+            }
+            p <- round(pnorm(-z1)-0.5,digits)+round(pnorm(z2)-.5,digits)
+        } else if (z1>0 & z2>0) {
+            if (CDF)
+            {
+                m1 <- paste("&=&Pr(Z\\leq", z2, ")-Pr(Z\\leq", z1, ")\\\\\n",
+                            "&\\approx&",
+                            round(pnorm(z2), digits), "-", round(pnorm(z1), digits),"\\\\\n&=&",
+                            round(pnorm(z2),digits)-round(pnorm(z1),digits))
+            } else {                                    
+                m1 <- paste("&=&Pr(0\\leq Z\\leq ", z2, ")-Pr(0\\leq Z\\leq", z1, ")",
+                            "\\\\\n&\\approx&",
+                            round(pnorm(z2)-0.5,digits), "-", round(pnorm(z1)-.5,digits),
+                            "\\\\\n&=&",round(pnorm(z2)-0.5,digits)-round(pnorm(z1)-.5,digits))
+            }
+            p <- round(pnorm(z2)-0.5,digits)-round(pnorm(z1)-.5,digits)
+        }        
+        
+    }
+    m <- paste("\\begin{eqnarray*}\nPr(", m, m1, "\n\\end{eqnarray*}\n")
+    if (print)
+    {
+        cat(m)
+        return(invisible())
+    } else {p}
+}
+

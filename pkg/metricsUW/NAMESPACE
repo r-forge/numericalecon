@@ -15,7 +15,8 @@ importFrom("methods", "setMethod")
 export(print.metricsSol, testMean, ciMean, testDiffMeans,
        ciDiffMeans, testVar, ciVar, testDiffVar, testRegCoef, ciRegCoef,
        testLinRegCoefs, testRegF, genTS, plot.DemSup, print.DemSup,
-       genDemSup, printReg.lm, printReg.tsls, printReg.formula, printReg)
+       genDemSup, printReg.lm, printReg.tsls, printReg.formula, printReg,
+       probFromTable)
 
 S3method(print, metricsSol)
 S3method(plot, DemSup)
