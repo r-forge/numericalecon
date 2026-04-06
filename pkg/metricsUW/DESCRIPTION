@@ -1,6 +1,6 @@
 Package: metricsUW
-Version: 0.1-0
-Date: 2026-03-30
+Version: 0.2-0
+Date: 2026-04-05
 Title:  Tools for Teaching Econometrics
 Authors@R: person(given="Pierre", family="Chausse", role=c("aut","cre"),
 	     	    email="pchausse@uwaterloo.ca")
@@ -8,7 +8,7 @@ Author: Pierre Chausse [aut, cre]
 Maintainer: Pierre Chausse <pchausse@uwaterloo.ca>
 Description: Functions used in my econometrics courses to generate solutions, print results and generate data.
 Depends: R (>= 4.0.0)
-Imports: stats, momentfit, texreg, methods
+Imports: stats, momentfit, texreg, methods, xtable
 Suggests: knitr, AER, sandwich, wooldridge, stargazer
 License: GPL (>= 2)
 NeedsCompilation: no

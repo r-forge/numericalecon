@@ -700,6 +700,41 @@ Z\leq z)$. If that's the case, we can set the argument `CDF` to
 probFromTable(a=48, b=40,  mu=50, sig2=25, approx=TRUE, varName="Y", CDF=TRUE)
 ```
 
+## Generate statistics tables
+
+For exercises or exam questions that require critical values from
+statistics table, the function `distTable` created a Latex table using
+the `xtable` package. For the t-distribution, it returns a table with
+5 columns: 90\%, 95\%, 97.5\%. 99\% and 99.5\% quantiles. We can use
+the default degrees of freedom, or enter them manually. By default, it
+is a floating table with a title a the label `"tTable"` for
+referencing. In the following, I set `float` to `FALSE`:
+
+```{r, results='asis'}
+distTable(df=c(4:9, Inf), dist="t", float=FALSE, digits=3)
+```
+
+For the chi-square table, the lower quantiles are also printed:
+
+```{r, results='asis'}
+distTable(df=c(4:10), dist="chisq", float=FALSE, digits=3)
+```
+
+The F-distribution has two sets of degrees of freedom, so a table only
+contains one quantile at the time. We can change the default 95\% by
+setting the argument size to something other than 0.05:
+
+```{r, results='asis'}
+distTable(df=c(4:10), df2=1:6, dist="f", size=0.10, float=FALSE, digits=3)
+```
+
+The last option is the Normal table. By default, it shows $Pr(0\leq
+Z\leq z)$ for $Z\sim N(0,1)$. To have the CDF, we set `CDF` to `TRUE`.
+
+```{r, results='asis'}
+distTable(df=c(4:10), df2=1:6, dist="normal", CDF=TRUE,  float=FALSE, digits=3)
+```
+
 ## Generate time series
 
 The function `genTS` generates an `mts` object with two time series,

@@ -164,6 +164,8 @@ print.DemSup <- function(x, ...)
     cat("\n\\end{eqnarray*}\n")
 }
 
+## Computing probabilities from printed Normal tables
+
 probFromTable <- function(a, b=NULL, type=c("less","greater"), digits=3,
                           mu=0, sig2=1, varName="X", approx=FALSE, print=TRUE,
                           CDF=FALSE)
@@ -330,3 +332,142 @@ probFromTable <- function(a, b=NULL, type=c("less","greater"), digits=3,
     } else {p}
 }
 
+
+## Generating statistics tables
+
+.chiTab <- function(df=NULL, digits=4, label=NULL)
+{
+    if(is.null(df))
+        df <- seq(1,30)
+    if (length(df)<5)
+        stop("the number of degrees of freedom must be greater than 4")
+    if (is.null(label))
+        label <- "chisqTable"
+    pr <- c(.01,.025, .05,.1, .9, .95, .975, .99)
+    tab <- sapply(pr, function(p) qchisq(p, df))
+    tab <- formatC(tab, digits=digits, format="f")
+    tab <- cbind(as.character(df),tab)
+    colnames(tab) = c("df",formatC(pr,format="f", digits=digits))
+    nc <- ncol(tab)
+    nr <- nrow(tab)
+    com1 <- paste("Example: $x$ that solves $P(Q\\leq x)=0.95$, where $Q$ is ",
+                  "$\\chi^2_", df[2], "$, is $x=",
+                  round(qchisq(0.95, df[2]),2), "$", sep="")
+    com2 <- paste("Example: $x$ that solves $P(Q\\leq x)=0.10$, where $Q$ is ",
+                  "$\\chi^2_", df[4], "$, is $x=",
+                  round(qchisq(0.10, df[4]),2), "$", sep="")                                 
+    com1 <- paste0("\\hline \n \\multicolumn{",nc,"}{l}",
+                   "{",com1,"} \n")
+    com2 <- paste0("\\\\ \n \\multicolumn{",nc,"}{l}",
+                   "{",com2,"} \n")
+    addr1 <- list(pos=list(nr), command=paste0(com1,com2))
+    t1 <- xtable(tab,caption="Quantiles of the Chi-Square Distribution",
+                 label=label)
+    list(table=t1, addToRow=addr1)
+}
+
+.fTab <- function(df1=NULL, df2=NULL, size=0.05, digits=4, label=NULL)
+{
+    if (is.null(df1))
+        df1 <- 1:10
+    if (is.null(df2))
+        df2 <- c(seq(10,30),40,60,90,120,Inf)
+    if (length(df1)<5 | length(df2)<5)
+        stop("The number of df1 and df2 must exceed 4")
+    if (is.null(label))
+        label <- "fTable"    
+    q <- 1-size
+    tab <- sapply(df1, function(df) qf(q, df, df2))
+    tab <- formatC(tab, format="f", digits=digits)
+    tab <- cbind(as.character(df2),tab)
+    colnames(tab) = c("df2\\df1",as.character(df1))
+    nc <- ncol(tab)
+    nr <- nrow(tab)
+    com1 <- paste("Example: The ", q*100, "\\% quantile of $F$",
+                  "where $F$ is $F(", df1[1], ",", df2[3], ")$ ",
+                  "is ", round(qf(q, df1[1], df2[3]),2), sep="")
+    com2 <- paste("Example: The ", q*100, "\\% quantile of $F$",
+                  "where $F$ is $F(", df1[3], ",", df2[4], ")$ ",
+                  "is ", round(qf(q, df1[3], df2[4]),2), sep="")    
+    com1 <- paste0("\\hline \n \\multicolumn{",nc,"}{l}",
+                   "{",com1,"} \n")
+    com2 <- paste0("\\\\ \n \\multicolumn{",nc,"}{l}",
+                   "{",com2,"} \n")
+    addr1 <- list(pos=list(nr), command=paste0(com1,com2))
+    t1 <- xtable(tab,caption="95\\% Quantiles of the F-Distribution",
+                 label=label)
+    list(table=t1, addToRow=addr1)
+}
+
+.tTab <- function(df=NULL, digits=4, label=NULL)
+{
+    if (is.null(df))
+        df <- c(seq(1,30),40,60,90,120, Inf)
+    if (length(df)<5)
+        stop("the number of degrees of freedom must be greater than 4")
+    if (is.null(label))
+        label <- "tTable"    
+    pr <- c(.90,.95, .975, 0.99, .995)
+    tab <- sapply(pr, function(p) qt(p, df))
+    tab <- formatC(tab, digits=digits, format="f")
+    tab <- cbind(as.character(df),tab)
+    colnames(tab) = c("df",formatC(pr,format="f", digits=3))
+    nc <- ncol(tab)
+    nr <- nrow(tab)
+    com1 <- paste("Example: $P(t\\leq x)=0.975$, where $t$ is $t_{", df[2],"}$",
+                  " implies $x=$", round(qt(.975, df[2]), digits), sep="")
+    com2 <- paste("Example: $P(t\\leq x)=0.99$, where $t$ is $t_{", df[4],"}$",
+                  " implies $x=$", round(qt(.99, df[4]), digits), sep="")
+    com3 <- paste("Example: $P(t\\leq x)=0.01$, where $t$ is $t_{", df[4],"}$",
+                  " implies $x=$", round(qt(.01, df[4]), digits), sep="")        
+    
+    com1 <- paste0("\\hline \n \\multicolumn{",nc,"}{l}",
+                   "{",com1,"} \n")
+    com2 <- paste0("\\\\ \n \\multicolumn{",nc,"}{l}",
+                   "{",com2,"} \n")
+    com3 <- paste0("\\\\ \n \\multicolumn{",nc,"}{l}",
+                   "{",com3,"} \n")
+    addr1 <- list(pos=list(nr), command=paste0(com1,com2,com3))
+    t1 <- xtable(tab,caption="Quantiles of the t-Distribution",
+                 label=label)
+    list(table=t1, addToRow=addr1)
+}
+
+.normTab <- function(digits=4, CDF=FALSE, label=NULL)
+{                    
+    z <- seq(0,3,by=0.1)
+    add <- ifelse(CDF, 0, -0.5)
+    tab <- sapply(0:9, function(d) pnorm(z+d/100)+add)
+    tab <- formatC(tab, digits=digits, format="f")
+    tab <- cbind(formatC(z,digits=1, format="f"),tab)
+    colnames(tab) = c("z",seq(0,9))
+    nc <- ncol(tab)
+    nr <- nrow(tab)
+    if (is.null(label))
+        label <- "normalTable"    
+    com1 <- "Example 1: If $Z\\sim N(0,1)$, then $P(0\\leq Z\\leq 1.84)=0.467$"
+    com2 <- "Example 2:  $P(-1.54 \\leq Z \\leq 0)=P(0\\leq Z\\leq 1.54) = 0.438$"
+    com1 <- paste0("\\hline \n \\multicolumn{",nc,"}{l}",
+                   "{",com1,"} \n")
+    com2 <- paste0("\\\\ \n \\multicolumn{",nc,"}{l}",
+                   "{",com2,"} \n")
+    addr1 <- list(pos=list(nr), command=paste0(com1,com2))
+    t1 <- xtable(tab,caption="$Pr(0\\leq Z\\leq z)$, where $Z\\sim N(0,1)$",
+                 label=label)
+    list(table=t1, addToRow=addr1)
+}
+
+
+distTable <- function(df=NULL, df2=NULL, digits=4, dist=c("t", "chisq", "f", "normal"),
+                      size=0.05, CDF=FALSE, float=TRUE, label=NULL)
+{
+    dist <- match.arg(dist)
+    tab <- switch(dist,
+                  t = get(".tTab")(df, digits, label),
+                  chisq = get(".chiTab")(df, digits, label),
+                  f = get(".fTab")(df, df2, size, digits, label),
+                  normal = get(".normTab")(digits, CDF, label))
+    print(tab$table, include.rownames=FALSE, caption.placement="top",
+          hline.after=c(-1, 0), add.to.row = tab$addToRow, comment=FALSE,
+          floating=float)
+}
